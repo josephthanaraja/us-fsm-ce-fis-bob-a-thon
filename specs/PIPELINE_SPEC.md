@@ -22,7 +22,7 @@ spec:
   serviceAccountName: jenkins
   containers:
   - name: pipeline-agent
-    image: image-registry.openshift-image-registry.svc:5000/sre-deploy-demo/sre-jenkins-agent:latest
+    image: image-registry.openshift-image-registry.svc:5000/sre-deploy-lab/sre-jenkins-agent:latest
     command: ['sleep']
     args: ['infinity']
     env:
@@ -588,7 +588,7 @@ Post-deployment health check script. Runs from inside the Jenkins agent pod (whi
 
 set -uo pipefail
 
-NAMESPACE=$(oc project -q 2>/dev/null || echo "sre-deploy-demo")
+NAMESPACE=$(oc project -q 2>/dev/null || echo "sre-deploy-lab")
 FAILURES=0
 TOTAL=0
 

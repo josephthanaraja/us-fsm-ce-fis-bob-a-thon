@@ -21,7 +21,7 @@ Additionally:
 ## Directory Structure
 
 ```
-sre-deploy-demo/
+sre-deploy-lab/
 ├── order-service/                          # The application
 │   ├── src/main/java/com/example/orders/
 │   │   ├── OrderApplication.java
@@ -202,7 +202,7 @@ head -1 k8s/openshift/jenkins-agent/Dockerfile
 
 ### Phase 5: Deploy Application to OpenShift (cluster required from here)
 
-**Prerequisites:** `oc login` completed, project created (`oc new-project sre-deploy-demo`)
+**Prerequisites:** `oc login` completed, project created (`oc new-project sre-deploy-lab`)
 
 **What to run:**
 ```bash

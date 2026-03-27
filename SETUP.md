@@ -99,7 +99,7 @@ oc get nodes     # Should list the cluster's worker nodes
 A project is a logical space on the cluster that holds all your app's resources.
 
 ```bash
-oc new-project sre-deploy-demo
+oc new-project sre-deploy-lab
 ```
 
 ---
@@ -253,8 +253,8 @@ When the setup script finishes, it prints the Jenkins URL:
   Jenkins setup complete!
 ========================================
 
-Jenkins UI:     https://jenkins-sre-deploy-demo.apps.your-cluster.cloud.ibm.com
-Pipeline job:   https://jenkins-sre-deploy-demo.apps.your-cluster.cloud.ibm.com/job/sre-pipeline/
+Jenkins UI:     https://jenkins-sre-deploy-lab.apps.your-cluster.cloud.ibm.com
+Pipeline job:   https://jenkins-sre-deploy-lab.apps.your-cluster.cloud.ibm.com/job/sre-pipeline/
 ```
 
 ### Step 10: Test It
@@ -322,7 +322,7 @@ make oc-deploy
 ### Database pods stuck in `CrashLoopBackOff`
 The security context constraint (SCC) patch may not have applied. Check:
 ```bash
-oc get clusterrolebinding sre-deploy-demo-anyuid
+oc get clusterrolebinding sre-deploy-lab-anyuid
 ```
 If it doesn't exist, the script should have created it. Try re-running `make oc-deploy`.
 
@@ -413,7 +413,7 @@ When your TechZone reservation expires and you get a new one, just repeat Steps 
 
 ```bash
 oc login --username=<new-user> --password=<new-password> --server=<new-api-url>
-oc new-project sre-deploy-demo
+oc new-project sre-deploy-lab
 
 # Enable registry (Steps 5a and 5b)
 oc patch configs.imageregistry.operator.openshift.io/cluster --type merge \

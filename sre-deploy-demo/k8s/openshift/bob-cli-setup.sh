@@ -3,7 +3,7 @@
 #
 # Prerequisites:
 # - oc login completed
-# - oc project set to sre-deploy-demo
+# - oc project set to sre-deploy-lab
 # - Internal registry enabled (same as main setup)
 # - .env file with BOBSHELL_API_KEY in project root
 

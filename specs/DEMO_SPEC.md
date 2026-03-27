@@ -157,7 +157,7 @@ Demonstrates the SRE team's 10-step regulated production deployment flow with Bo
 oc login --username=<user> --password=<pass> --server=<api-url>
 
 # 2. Create project
-oc new-project sre-deploy-demo
+oc new-project sre-deploy-lab
 
 # 3. Deploy everything
 make setup

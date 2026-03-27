@@ -86,7 +86,7 @@ else
     fi
 fi
 
-GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-demo}"
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-lab}"
 
 # ── Step 1: Deploy Jenkins ───────────────────────────────────────────────────
 

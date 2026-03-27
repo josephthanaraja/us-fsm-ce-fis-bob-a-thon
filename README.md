@@ -24,7 +24,7 @@ A production deployment pipeline where Bob:
 ```bash
 # Login and create project
 oc login --username=<user> --password=<pass> --server=<api-url>
-oc new-project sre-deploy-demo
+oc new-project sre-deploy-lab
 
 # Deploy everything
 make setup

@@ -11,7 +11,7 @@ spec:
   serviceAccountName: jenkins
   containers:
   - name: pipeline-agent
-    image: image-registry.openshift-image-registry.svc:5000/sre-deploy-demo/sre-jenkins-agent:latest
+    image: image-registry.openshift-image-registry.svc:5000/sre-deploy-lab/sre-jenkins-agent:latest
     command: ['sleep']
     args: ['infinity']
     env:

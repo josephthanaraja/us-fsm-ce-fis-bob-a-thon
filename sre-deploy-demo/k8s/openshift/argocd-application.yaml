@@ -7,15 +7,15 @@ spec:
   project: default
   source:
     # Update this to your repo URL
-    repoURL: https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-demo
+    repoURL: https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-lab
     targetRevision: main
     path: k8s
   destination:
     server: https://kubernetes.default.svc
     # Update this to your namespace
-    namespace: sre-deploy-demo
+    namespace: sre-deploy-lab
   syncPolicy:
-    # Manual sync for demo control — click "Sync" in ArgoCD UI
+    # Manual sync for lab control — click "Sync" in ArgoCD UI
     # Change to automated for real use:
     # automated:
     #   prune: true

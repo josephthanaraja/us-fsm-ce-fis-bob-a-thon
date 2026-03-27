@@ -314,7 +314,7 @@ The modified sections:
 
 ```bash
 # Line ~89: Change repo URL
-GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-demo}"
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-lab}"
 
 # Line ~282: Change job name
 echo "=== Step 4: Creating sre-pipeline job ==="
@@ -463,13 +463,13 @@ spec:
   project: default
   source:
     # Update this to your repo URL
-    repoURL: https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-demo
+    repoURL: https://github.ibm.com/ibm-us-fsm-ce/sre-deploy-lab
     targetRevision: main
     path: k8s
   destination:
     server: https://kubernetes.default.svc
     # Update this to your namespace
-    namespace: sre-deploy-demo
+    namespace: sre-deploy-lab
   syncPolicy:
     # Manual sync for demo control — click "Sync" in ArgoCD UI
     # Change to automated for real use:

@@ -31,7 +31,7 @@ A hands-on lab for learning how to integrate Bob AI into a regulated CI/CD pipel
 oc login --username=<user> --password=<pass> --server=<api-url>
 
 # 2. Create project
-oc new-project sre-deploy-demo
+oc new-project sre-deploy-lab
 
 # 3. Deploy everything
 make setup

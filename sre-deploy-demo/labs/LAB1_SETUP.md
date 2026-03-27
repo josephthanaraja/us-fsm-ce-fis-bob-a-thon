@@ -27,7 +27,7 @@ oc get nodes
 ## 1.2 — Create a project
 
 ```bash
-oc new-project sre-deploy-demo
+oc new-project sre-deploy-lab
 ```
 
 ---

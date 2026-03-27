@@ -3,18 +3,18 @@ kind: Deployment
 metadata:
   name: bob-cli
   labels:
-    app: sre-deploy-demo
+    app: sre-deploy-lab
     component: bob-cli
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sre-deploy-demo
+      app: sre-deploy-lab
       component: bob-cli
   template:
     metadata:
       labels:
-        app: sre-deploy-demo
+        app: sre-deploy-lab
         component: bob-cli
     spec:
       serviceAccountName: bob-cli

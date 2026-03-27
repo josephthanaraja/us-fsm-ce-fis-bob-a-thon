@@ -5,7 +5,7 @@
 
 set -uo pipefail
 
-NAMESPACE=$(oc project -q 2>/dev/null || echo "sre-deploy-demo")
+NAMESPACE=$(oc project -q 2>/dev/null || echo "sre-deploy-lab")
 FAILURES=0
 TOTAL=0
 
