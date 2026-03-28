@@ -1,16 +1,24 @@
-# Lab 2: Integrating Bob into Your Pipeline
+# Lab: Integrating Bob into Your Pipeline
 
-In this lab you will add Bob AI to a working Jenkins pipeline, one integration point at a time. You will start from the baseline pipeline (no Bob) and progressively add:
-
-1. A helper function to call Bob from any pipeline stage
-2. Bob analyzing a PR before any checks run
-3. Bob diagnosing failures when PCI compliance or tests fail
-4. Bob generating a formal Deployment Change Request (DCR) for the approval gate
-
-Each exercise builds on the previous one. After each exercise you will commit, push, and run the pipeline to see the result.
+In this lab you will add Bob AI to a working Jenkins pipeline, one integration point at a time. Each exercise adds Bob at a specific stage, and you'll test it by running the pipeline against a branch that triggers that failure.
 
 **Time:** ~45 minutes
-**Prerequisites:** Lab 1 complete (app, Bob CLI, Jenkins all running). The default `Jenkinsfile` in the repo is the baseline pipeline with no Bob integration. The completed reference implementation is at `labs/Jenkinsfile.solution`.
+**Prerequisites:** Setup complete (app, ArgoCD, Bob CLI, Jenkins all running). The default `Jenkinsfile` is the baseline pipeline with no Bob. The completed version is at `labs/solution/Jenkinsfile.solution`.
+
+---
+
+## Scenario branches
+
+Four branches are set up with intentional issues. The baseline pipeline catches these failures but only dumps raw output. You'll add Bob to explain what went wrong and how to fix it.
+
+| Branch | What's broken | Pipeline stage that catches it |
+|---|---|---|
+| `lab/happy-path` | Nothing — clean build | All stages pass |
+| `lab/security-vuln` | `System.out.println` + old base image | Step 3 (PCI Compliance) + Step 5 (Security Scan) |
+| `lab/test-failure` | Status validation removed from OrderService | Step 4 (Unit Tests) |
+| `lab/smoke-failure` | Health endpoint returns 503 | Step 9 (Smoke Tests) — passes all other checks |
+
+**Try it now.** Before adding Bob, run a build in Jenkins with `BRANCH=lab/security-vuln` to see what a failure looks like without AI assistance. Look at the PCI Compliance stage output — it's raw Maven checkstyle output. By the end of this lab, Bob will explain that in plain language.
 
 ---
 
@@ -85,10 +93,10 @@ Commit, push, and run the pipeline:
 ```bash
 git add Jenkinsfile
 git commit -m "lab: add askBob helper function"
-git push origin lab/my-pipeline
+git push origin main
 ```
 
-In Jenkins, build with `BRANCH=lab/my-pipeline`. Check the console output for the "Test Bob Connection" stage.
+In Jenkins, build with `BRANCH=main`. Check the console output for the "Test Bob Connection" stage.
 
 > **Checkpoint:** You see Bob's response in the Jenkins console. Remove the test stage before continuing (or leave it — your call).
 
@@ -162,43 +170,19 @@ echo "Bob's Test Analysis:\n${env.BOB_TEST_ANALYSIS}"
 
 ### Test it
 
-To trigger these code paths, you need a branch that actually fails. Create one:
-
-```bash
-git checkout -b lab/pci-violation
-```
-
-Open `order-service/src/main/java/com/example/orders/service/OrderService.java` and add this line inside the `createOrder` method, right before the `return`:
-
-```java
-System.out.println("Creating order for: " + order.getCustomerName());
-```
-
-Commit and push:
-
-```bash
-git add -A
-git commit -m "lab: add PCI violation for testing"
-git push origin lab/pci-violation
-```
-
-Run a build in Jenkins with `BRANCH=lab/pci-violation`. Watch the PCI Compliance stage — you should see Bob's analysis explaining why `System.out.println` is a PCI violation.
-
-> **Checkpoint:** Bob's PCI analysis appears in the console output, explaining the violation in PCI DSS terms.
-
-Switch back to your main lab branch for the next exercise:
-
-```bash
-git checkout lab/my-pipeline
-```
-
-Commit the Bob integration changes you made to the Jenkinsfile:
+Commit and push your changes:
 
 ```bash
 git add Jenkinsfile
 git commit -m "lab: add Bob failure diagnosis for PCI and test failures"
-git push origin lab/my-pipeline
+git push origin main
 ```
+
+**PCI failure:** Run a build with `BRANCH=lab/security-vuln`. Watch the PCI Compliance stage — instead of raw Maven output, Bob explains why `System.out.println` is a PCI violation and how to fix it.
+
+**Test failure:** Run a build with `BRANCH=lab/test-failure`. Watch the Test stage — Bob identifies the missing status validation and suggests the fix.
+
+> **Checkpoint:** Bob's analysis appears in the console output for both failure types.
 
 ---
 
@@ -281,14 +265,14 @@ Commit and push:
 ```bash
 git add Jenkinsfile
 git commit -m "lab: add Bob-generated DCR at approval gate"
-git push origin lab/my-pipeline
+git push origin main
 ```
 
-Run a build with `BRANCH=lab/my-pipeline`. When the pipeline reaches the Approval stage, look at the input dialog. Instead of the plain summary from before, you should see a full DCR.
+**Clean build:** Run a build with `BRANCH=lab/happy-path`. The DCR should show all checks passed and recommend APPROVE.
 
-Now run it against the PCI violation branch: `BRANCH=lab/pci-violation`. This time the DCR should flag the failure and recommend REJECT.
+**Failed build:** Run a build with `BRANCH=lab/security-vuln`. The DCR should flag the PCI failure and recommend REJECT.
 
-> **Checkpoint:** The approval gate shows Bob's DCR. On the clean branch it recommends APPROVE; on the violation branch it recommends REJECT.
+> **Checkpoint:** The approval gate shows Bob's full DCR instead of the bare-bones summary.
 
 ---
 
@@ -324,13 +308,15 @@ echo "Bob's Smoke Test Analysis:\n${env.BOB_SMOKE_ANALYSIS}"
 
 ### Test it
 
-Run a build with `BRANCH=lab/smoke-failure`. This branch changes the health endpoint to return 503. All pipeline checks pass (lint, PCI, tests, security), the build and deploy succeed, but the smoke tests fail post-deployment. Bob should analyze the 503 and recommend rollback.
+Commit and push:
 
 ```bash
 git add Jenkinsfile
 git commit -m "lab: add Bob smoke test triage"
-git push origin lab/my-pipeline
+git push origin main
 ```
+
+Run a build with `BRANCH=lab/smoke-failure`. This branch changes the health endpoint to return 503. All pipeline checks pass (lint, PCI, tests, security), the build and deploy succeed, but the smoke tests fail post-deployment. Bob should analyze the 503 and recommend rollback.
 
 > **Checkpoint:** Bob identifies the broken health endpoint and recommends rollback.
 
