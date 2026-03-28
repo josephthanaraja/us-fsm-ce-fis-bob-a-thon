@@ -34,8 +34,7 @@ spec:
     }
 
     environment {
-        BOBSHELL_API_KEY = credentials('bobshell-api-key')
-        GITHUB_TOKEN     = credentials('github-pat')
+        GITHUB_TOKEN = credentials('github-pat')
     }
 
     stages {

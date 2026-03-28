@@ -197,12 +197,7 @@ This section adds Jenkins CI/CD to your OpenShift deployment so you can run the 
 
 ### What You'll Need
 
-Before starting, gather these two things:
-
-| Secret | Where to Get It |
-|---|---|
-| **GitHub Enterprise PAT** | [github.ibm.com/settings/tokens](https://github.ibm.com/settings/tokens) — create a token with `repo` scope |
-| **Bob Shell API Key** | Same key from your `.env` file (you already have this from Step 6) |
+You'll need a **GitHub Enterprise PAT** — create one at [github.ibm.com/settings/tokens](https://github.ibm.com/settings/tokens) with `repo` scope.
 
 ### Step 9: Deploy Jenkins + Create Pipeline Job
 
@@ -212,10 +207,10 @@ One command does everything — deploys Jenkins, installs plugins, configures cr
 make oc-deploy-jenkins
 ```
 
-The script will prompt you for your GitHub PAT and Bob API key. Or pass them as environment variables to skip the prompts:
+The script will prompt you for your GitHub PAT. Or pass it as an environment variable to skip the prompt:
 
 ```bash
-GITHUB_PAT=ghp_xxx BOB_API_KEY=sk-xxx make oc-deploy-jenkins
+GITHUB_PAT=ghp_xxx make oc-deploy-jenkins
 ```
 
 **What this does automatically:**
@@ -223,7 +218,7 @@ GITHUB_PAT=ghp_xxx BOB_API_KEY=sk-xxx make oc-deploy-jenkins
 1. Deploys Jenkins on OpenShift with 2Gi memory and 5Gi persistent storage
 2. Waits for Jenkins to fully start (2-5 minutes)
 3. Installs required plugins (Pipeline, Git, GitHub, Credentials)
-4. Creates two credentials in Jenkins (`github-pat` and `bobshell-api-key`)
+4. Creates the `github-pat` credential in Jenkins
 5. Creates the `sre-pipeline` job pointing to the `Jenkinsfile` in this repo
 
 **First time opening Jenkins UI:** When you visit the Jenkins URL, OpenShift will show a permissions consent screen asking Jenkins to access `user:info` and `user:check-access`. Click **"Allow selected permissions"** — this is standard OpenShift OAuth and lets Jenkins authenticate you as your cluster user. It's a one-time prompt per user.

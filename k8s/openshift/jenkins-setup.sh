@@ -10,7 +10,7 @@
 #
 # Usage:
 #   ./jenkins-setup.sh                          # interactive — prompts for secrets
-#   GITHUB_PAT=xxx BOB_API_KEY=yyy ./jenkins-setup.sh  # non-interactive
+#   GITHUB_PAT=xxx ./jenkins-setup.sh                  # non-interactive
 
 set -e
 
@@ -49,18 +49,14 @@ if [ -f "$PROJECT_DIR/.env" ]; then
         export $(grep GITHUB_PAT "$PROJECT_DIR/.env" | xargs)
         echo "Loaded GITHUB_PAT from .env file"
     fi
-    if [ -z "$BOB_API_KEY" ] && grep -q BOBSHELL_API_KEY "$PROJECT_DIR/.env"; then
-        BOB_API_KEY=$(grep BOBSHELL_API_KEY "$PROJECT_DIR/.env" | cut -d= -f2-)
-        echo "Loaded BOB_API_KEY from .env file"
-    fi
 fi
 
 # ── Collect secrets (skip if Jenkins is already deployed) ────────────────────
 
-if [ "$JENKINS_ALREADY_DEPLOYED" = true ] && [ -z "$GITHUB_PAT" ] && [ -z "$BOB_API_KEY" ]; then
+if [ "$JENKINS_ALREADY_DEPLOYED" = true ] && [ -z "$GITHUB_PAT" ]; then
     echo ""
     echo "Jenkins is already deployed — skipping credential prompts."
-    echo "  (Pass GITHUB_PAT and BOB_API_KEY env vars to update credentials)"
+    echo "  (Pass GITHUB_PAT env var to update credentials)"
     SKIP_CREDENTIALS=true
 else
     SKIP_CREDENTIALS=false
@@ -73,15 +69,8 @@ else
         echo ""
     fi
 
-    if [ -z "$BOB_API_KEY" ]; then
-        echo ""
-        echo "Enter the Bob CLI API key (same as BOBSHELL_API_KEY in .env)."
-        read -rsp "Bob API Key: " BOB_API_KEY
-        echo ""
-    fi
-
-    if [ -z "$GITHUB_PAT" ] || [ -z "$BOB_API_KEY" ]; then
-        echo "Error: Both GITHUB_PAT and BOB_API_KEY are required."
+    if [ -z "$GITHUB_PAT" ]; then
+        echo "Error: GITHUB_PAT is required."
         exit 1
     fi
 fi
@@ -256,21 +245,6 @@ CREDEOF
         -d "$GITHUB_CRED_XML" \
         > /dev/null 2>&1 || echo "    (may already exist)"
 
-    BOB_CRED_XML=$(cat <<CREDEOF
-<org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl>
-  <scope>GLOBAL</scope>
-  <id>bobshell-api-key</id>
-  <description>Bob CLI API Key</description>
-  <secret>$BOB_API_KEY</secret>
-</org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl>
-CREDEOF
-)
-
-    echo "  Adding credential: bobshell-api-key"
-    jenkins_post "/credentials/store/system/domain/_/createCredentials" \
-        -H "Content-Type: application/xml" \
-        -d "$BOB_CRED_XML" \
-        > /dev/null 2>&1 || echo "    (may already exist)"
 fi
 
 # ── Step 4: Create the Pipeline Job ─────────────────────────────────────────

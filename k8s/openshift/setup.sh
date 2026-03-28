@@ -22,8 +22,11 @@ echo ""
 echo "=== Enabling internal registry ==="
 oc patch configs.imageregistry.operator.openshift.io/cluster \
     --type merge -p '{"spec":{"managementState":"Managed"}}' 2>/dev/null || true
-oc patch configs.imageregistry.operator.openshift.io/cluster \
-    --type merge -p '{"spec":{"defaultRoute":true}}' 2>/dev/null || true
+
+# ── Grant anyuid SCC so PostgreSQL can set file permissions ──────────────
+echo ""
+echo "=== Granting anyuid SCC ==="
+oc adm policy add-scc-to-user anyuid -z default -n "$NAMESPACE" 2>/dev/null || true
 
 # ── Deploy database ─────────────────────────────────────────────────────
 echo ""
