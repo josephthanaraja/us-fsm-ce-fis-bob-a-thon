@@ -96,7 +96,7 @@ spec:
                 script {
                     dir('order-service') {
                         def result = sh(
-                            script: 'mvn checkstyle:check -Dcheckstyle.config.location=../pipeline/pci-checkstyle.xml 2>&1 | tee ${WORKSPACE}/pci-output.txt',
+                            script: 'set -o pipefail; mvn checkstyle:check -Dcheckstyle.config.location=../pipeline/pci-checkstyle.xml 2>&1 | tee ${WORKSPACE}/pci-output.txt',
                             returnStatus: true
                         )
                         if (result != 0) {
@@ -125,7 +125,7 @@ spec:
                 script {
                     dir('order-service') {
                         def result = sh(
-                            script: 'mvn test 2>&1 | tee ${WORKSPACE}/test-output.txt',
+                            script: 'set -o pipefail; mvn test 2>&1 | tee ${WORKSPACE}/test-output.txt',
                             returnStatus: true
                         )
 
