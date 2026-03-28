@@ -1,49 +1,42 @@
 # Lab: Integrating IBM Bob into Your Pipeline
 
-In this lab you will add Bob AI to a working Jenkins pipeline, one integration point at a time. Each exercise adds Bob at a specific stage, and you'll test it by running the pipeline against a branch that triggers that failure.
+The `main` branch has a working Jenkins pipeline that implements the client's 10-step regulated deployment flow — but it has no AI assistance. When stages fail, the pipeline dumps raw output that's hard to act on. In this lab you'll add Bob at three key pain points to make failures understandable.
 
-**Time:** ~45 minutes
-**Prerequisites:** Setup complete (app, ArgoCD, Bob CLI, Jenkins all running). The default `Jenkinsfile` is the baseline pipeline with no Bob. The completed version is at `labs/solution/Jenkinsfile.solution`.
+**Time:** ~30 minutes
+**Prerequisites:** Setup complete (app, ArgoCD, Bob CLI, Jenkins all running). The completed version is at `labs/solution/Jenkinsfile.solution`.
 
 ---
 
-## Scenario branches
+## Before you start
 
-Four branches are set up with intentional issues. The baseline pipeline catches these failures but only dumps raw output. You'll add Bob to explain what went wrong and how to fix it.
+Run a build in Jenkins with `BRANCH=main`. The pipeline has intentional issues:
 
-| Branch | What's broken | Pipeline stage that catches it |
-|---|---|---|
-| `lab/happy-path` | Nothing — clean build | All stages pass |
-| `lab/security-vuln` | `System.out.println` + old base image | Step 3 (PCI Compliance) + Step 5 (Security Scan) |
-| `lab/test-failure` | Status validation removed from OrderService | Step 4 (Unit Tests) |
-| `lab/smoke-failure` | Health endpoint returns 503 | Step 9 (Smoke Tests) — passes all other checks |
+- **PCI Compliance (Step 4)** — a `System.out.println` violates PCI checkstyle rules (yellow)
+- **Unit Tests (Step 5)** — status validation was removed, 2 tests fail (yellow)
+- **Security Scan (Step 6)** — Spring Boot 3.2.0 has known CVEs (yellow)
 
-**Try it now.** Before adding Bob, run a build in Jenkins with `BRANCH=lab/security-vuln` to see what a failure looks like without AI assistance. Look at the PCI Compliance stage output — it's raw Maven checkstyle output. By the end of this lab, Bob will explain that in plain language.
+Look at the console output for each failing stage. It's raw Maven output, raw test stack traces, and a wall of CVE tables. By the end of this lab, Bob will explain all of it in plain language.
 
 ---
 
 ## How Bob works on the cluster
 
-Bob CLI runs in a pod labeled `component=bob-cli`. From any other pod on the cluster (including the Jenkins agent), you can call Bob like this:
+Bob CLI runs in a pod labeled `component=bob-cli`. From any pod on the cluster (including the Jenkins agent), you can call Bob like this:
 
 ```bash
-# Find the pod
 BOB_POD=$(oc get pods -l component=bob-cli -o jsonpath='{.items[0].metadata.name}')
-
-# Send a prompt
 oc exec $BOB_POD -- bob -p "Your question here" --hide-intermediary-output
 ```
 
-You will wrap this pattern in a Groovy helper function so every pipeline stage can call it with one line.
+You will wrap this in a Groovy helper function so every pipeline stage can call it with one line.
 
 ---
 
 ## Exercise 1: Add the `askBob` helper function
 
-Open `Jenkinsfile` in Bob. At the very bottom of the file, **after** the closing `}` of the `pipeline` block, add this helper function:
+Open `Jenkinsfile` in Bob. At the very bottom of the file, **after** the closing `}` of the `pipeline` block, add:
 
 ```groovy
-// ── Helper: ask Bob CLI a question ──────────────────────────────────────
 def askBob(prompt) {
     def bobPod = sh(
         script: "oc get pods -l component=bob-cli -o jsonpath='{.items[0].metadata.name}' 2>/dev/null",
@@ -55,7 +48,6 @@ def askBob(prompt) {
         return "Bob CLI not available"
     }
 
-    // Write the prompt to a file to avoid shell escaping issues
     def promptFile = ".bob-prompt-${System.currentTimeMillis()}.txt"
     writeFile(file: promptFile, text: prompt)
     sh "oc cp ${promptFile} ${bobPod}:/tmp/bob-prompt.txt 2>/dev/null"
@@ -70,9 +62,7 @@ def askBob(prompt) {
 }
 ```
 
-**Why a file instead of inline?** Prompts contain newlines, quotes, and special characters. Passing them as shell arguments breaks. Writing to a file and `oc cp`-ing it to the Bob pod avoids all escaping issues.
-
-**Test it.** Add a temporary stage right after Checkout to verify the helper works:
+**Test it.** Add a temporary stage right after Checkout:
 
 ```groovy
 stage('Test Bob Connection') {
@@ -80,71 +70,75 @@ stage('Test Bob Connection') {
         script {
             def response = askBob("Reply with exactly: BOB_OK")
             echo "Bob says: ${response}"
-            if (!response.contains("BOB_OK")) {
-                echo "Warning: Bob did not respond as expected. Check the bob-cli pod."
-            }
         }
     }
 }
 ```
 
-Commit, push, and run the pipeline:
+Commit, push, rebuild on `main`. Verify Bob responds, then remove the test stage.
 
-```bash
-git add Jenkinsfile
-git commit -m "lab: add askBob helper function"
-git push origin main
-```
-
-In Jenkins, build with `BRANCH=main`. Check the console output for the "Test Bob Connection" stage.
-
-> **Checkpoint:** You see Bob's response in the Jenkins console. Remove the test stage before continuing (or leave it — your call).
+> **Checkpoint:** Bob's response appears in the Jenkins console.
 
 ---
 
-## Exercise 2: Bob analyzes failures
+## Exercise 2: Bob analyzes the PR
 
-Now you'll add Bob at two points where the pipeline **already detects a problem** but only dumps raw output. Bob will explain the problem in plain language.
-
-### 2a — PCI compliance failure diagnosis
-
-Find the `PCI Compliance Check` stage. Look for this comment block:
+Add a new stage after Checkout. Find this comment in the Jenkinsfile:
 
 ```groovy
-// ╔════════════════════════════════════════════════════╗
-// ║  EXERCISE 2a: Add Bob PCI analysis here            ║
-// ╚════════════════════════════════════════════════════╝
+// ╔════════════════════════════════════════════════════════════╗
+// ║  EXERCISE 2: Add a Bob PR Analysis stage here             ║
+// ╚════════════════════════════════════════════════════════════╝
 ```
 
 Replace it with:
 
 ```groovy
-env.BOB_PCI_ANALYSIS = askBob("""PCI compliance check failed in a regulated financial environment.
+stage('Bob PR Analysis') {
+    steps {
+        echo "══════════════════════════════════════════"
+        echo "  STEP 2: Bob Analyzes the PR"
+        echo "══════════════════════════════════════════"
+        script {
+            def diffStat = sh(
+                script: 'git diff --stat origin/main...HEAD 2>/dev/null || git diff --stat HEAD~1 2>/dev/null || echo "No diff"',
+                returnStdout: true
+            ).trim()
 
-These are PCI DSS compliance violations that must be fixed before deployment.
+            env.BOB_PR_ANALYSIS = askBob("""A pull request has been submitted for review.
 
-Violations:
-${output}
+Changed files:
+${env.CHANGED_FILES}
 
-For each violation:
-1. Explain why this is a PCI compliance issue
-2. What the specific risk is (data exposure, audit failure, etc.)
-3. How to fix it
+Diff summary:
+${diffStat}
 
-Be specific and reference PCI DSS requirements where applicable.""")
+Analyze this PR:
+1. What is this change doing?
+2. What are the potential risks?
+3. What should reviewers focus on?
 
-echo "Bob's PCI Analysis:\n${env.BOB_PCI_ANALYSIS}"
+Be concise.""")
+
+            echo "Bob's PR Analysis:\n${env.BOB_PR_ANALYSIS}"
+        }
+    }
+}
 ```
 
-**What this does:** When the PCI checkstyle rules fail, instead of just showing the raw Maven output, Bob explains *why* each violation matters in PCI DSS terms and how to fix it.
+Commit, push, rebuild. Bob should summarize the changes and flag the risks before any checks run.
 
-### 2b — Unit test failure diagnosis
+> **Checkpoint:** Bob's PR analysis appears in the console before the Lint stage.
 
-Find the `Test` stage. Look for this comment block:
+---
+
+## Exercise 3: Bob diagnoses test failures
+
+Find this comment in the Test stage:
 
 ```groovy
 // ╔════════════════════════════════════════════════════╗
-// ║  EXERCISE 2b: Add Bob test analysis here           ║
+// ║  EXERCISE 3: Add Bob test failure analysis here    ║
 // ╚════════════════════════════════════════════════════╝
 ```
 
@@ -166,46 +160,79 @@ Be specific — reference exact class names and methods.""")
 echo "Bob's Test Analysis:\n${env.BOB_TEST_ANALYSIS}"
 ```
 
-**What this does:** When tests fail, Bob reads the test output, identifies the root cause, and tells the developer exactly what to fix.
+Commit, push, rebuild. The Test stage should still go yellow, but now Bob explains what broke and how to fix it.
 
-### Test it
-
-Commit and push your changes:
-
-```bash
-git add Jenkinsfile
-git commit -m "lab: add Bob failure diagnosis for PCI and test failures"
-git push origin main
-```
-
-**PCI failure:** Run a build with `BRANCH=lab/security-vuln`. Watch the PCI Compliance stage — instead of raw Maven output, Bob explains why `System.out.println` is a PCI violation and how to fix it.
-
-**Test failure:** Run a build with `BRANCH=lab/test-failure`. Watch the Test stage — Bob identifies the missing status validation and suggests the fix.
-
-> **Checkpoint:** Bob's analysis appears in the console output for both failure types.
+> **Checkpoint:** Bob identifies the missing status validation and suggests restoring it.
 
 ---
 
-## Exercise 3: Bob generates a Deployment Change Request
+## Exercise 4: Bob triages security vulnerabilities
 
-This is the highest-value integration point. Instead of a human writing a change management ticket, Bob generates a formal DCR that includes all the validation evidence from the pipeline.
-
-Find the `Approval` stage. Look for this comment block:
+Find this comment in the Security Scan stage:
 
 ```groovy
-// ╔════════════════════════════════════════════════════════╗
-// ║  EXERCISE 3: Replace this manual summary with a        ║
-// ║  Bob-generated Deployment Change Request (DCR)        ║
-// ╚════════════════════════════════════════════════════════╝
+// ╔════════════════════════════════════════════════════╗
+// ║  EXERCISE 4: Add Bob security scan analysis here   ║
+// ╚════════════════════════════════════════════════════╝
 ```
 
-Replace the **entire `script` block** in the Approval stage with:
+Replace it with:
+
+```groovy
+env.BOB_SECURITY_ANALYSIS = askBob("""Security scan found vulnerabilities in a PCI-regulated financial services environment.
+
+Scan results:
+${scanResult}
+
+For each vulnerability:
+1. What is the vulnerability and is it exploitable in this context?
+2. What is the PCI compliance impact?
+3. What is the recommended fix (specific version to upgrade to)?
+
+Prioritize by severity. Be concise.""")
+
+echo "Bob's Security Analysis:\n${env.BOB_SECURITY_ANALYSIS}"
+```
+
+Commit, push, rebuild. Instead of a raw Trivy table, Bob explains each CVE and tells you exactly what to upgrade.
+
+> **Checkpoint:** Bob's security analysis appears with actionable fix recommendations.
+
+---
+
+## What you built
+
+| Exercise | Pipeline stage | What Bob does |
+|---|---|---|
+| `askBob()` helper | — | Sends any prompt to the Bob CLI pod |
+| PR Analysis | After Checkout (Step 2) | Summarizes the change, identifies risks before checks run |
+| Test Failure Diagnosis | Unit Tests (Step 5) | Explains what broke and how to fix it |
+| Security Scan Triage | Security Scan (Step 6) | Explains CVEs, PCI impact, and specific version to upgrade |
+
+### The pattern
+
+Every integration point follows the same pattern:
+
+1. **Collect context** — gather the data Bob needs (diff, test output, scan results)
+2. **Write a clear prompt** — tell Bob what role to play, what data you're giving it, and what format you want back
+3. **Call `askBob()`** — send the prompt, get the response
+4. **Use the response** — display it, feed it to the next stage, or show it at the approval gate
+
+---
+
+## Extra exercises
+
+The same pattern works for other stages. Try these on your own:
+
+### DCR Generation (Approval Gate)
+
+Find the `EXTRA` comment in the Approval stage. Replace the entire `script` block so Bob generates a formal Deployment Change Request:
 
 ```groovy
 script {
     def pciStatus = env.PCI_FAILED == 'true' ? 'FAILED' : 'PASSED'
     def testStatus = env.TEST_FAILED == 'true' ? 'FAILED' : 'PASSED'
-    def canDeploy = (env.PCI_FAILED != 'true' && env.TEST_FAILED != 'true')
+    def canDeploy = (env.PCI_FAILED != 'true' && env.TEST_FAILED != 'true' && env.SECURITY_RISK != 'HIGH')
 
     env.DCR_SUMMARY = askBob("""Create a formal Deployment Change Request (DCR) for a PCI-regulated financial services environment.
 
@@ -217,20 +244,20 @@ VALIDATION RESULTS:
 - PCI compliance: ${pciStatus}
 - Unit tests: ${testStatus} (${env.TEST_SUMMARY})
 - Security scan: ${env.SECURITY_RISK} risk
-${env.PCI_FAILED == 'true' && env.BOB_PCI_ANALYSIS ? '- PCI Issues: ' + env.BOB_PCI_ANALYSIS : ''}
-${env.TEST_FAILED == 'true' && env.BOB_TEST_ANALYSIS ? '- Test Failures: ' + env.BOB_TEST_ANALYSIS : ''}
+${env.BOB_SECURITY_ANALYSIS ? '- Security Issues: ' + env.BOB_SECURITY_ANALYSIS : ''}
+${env.BOB_TEST_ANALYSIS ? '- Test Failures: ' + env.BOB_TEST_ANALYSIS : ''}
 
 Create a DCR with:
-1. CHANGE DESCRIPTION — What is changing and why
+1. CHANGE DESCRIPTION
 2. RISK ASSESSMENT — Low/Medium/High/Critical with justification
-3. AFFECTED SERVICES — What services and environments are impacted
-4. VALIDATION EVIDENCE — Summary of all check results
-5. ROLLBACK PLAN — How to revert if deployment fails
+3. AFFECTED SERVICES
+4. VALIDATION EVIDENCE
+5. ROLLBACK PLAN
 6. RECOMMENDATION — APPROVE or REJECT
 
-${canDeploy ? 'All checks passed.' : 'IMPORTANT: Some checks FAILED. Reflect this in the risk assessment and recommendation.'}
+${canDeploy ? 'All checks passed.' : 'IMPORTANT: Some checks FAILED.'}
 
-Be formal and concise. This will be reviewed by team management.""")
+Be formal and concise.""")
 
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
@@ -241,11 +268,7 @@ Be formal and concise. This will be reviewed by team management.""")
     echo ""
 
     try {
-        input message: """
-${env.DCR_SUMMARY}
-
-Do you approve this deployment?
-""",
+        input message: "${env.DCR_SUMMARY}\n\nDo you approve this deployment?",
             ok: 'Approve Deployment',
             submitter: ''
     } catch (e) {
@@ -256,39 +279,9 @@ Do you approve this deployment?
 }
 ```
 
-**What changed:** The approval gate now shows Bob's full DCR — risk assessment, validation evidence, rollback plan, and a recommendation — instead of a bare-bones summary. The reviewer has everything they need to make an informed decision without reading raw build logs.
+### Smoke Test Triage
 
-### Test it
-
-Commit and push:
-
-```bash
-git add Jenkinsfile
-git commit -m "lab: add Bob-generated DCR at approval gate"
-git push origin main
-```
-
-**Clean build:** Run a build with `BRANCH=lab/happy-path`. The DCR should show all checks passed and recommend APPROVE.
-
-**Failed build:** Run a build with `BRANCH=lab/security-vuln`. The DCR should flag the PCI failure and recommend REJECT.
-
-> **Checkpoint:** The approval gate shows Bob's full DCR instead of the bare-bones summary.
-
----
-
-## Exercise 4: Bob triages smoke test failures
-
-After deployment, smoke tests verify the service is actually working. When they fail, Bob can analyze the output and recommend whether to rollback.
-
-Find the `Smoke Tests` stage. Look for this comment block:
-
-```groovy
-// ╔════════════════════════════════════════════════════╗
-// ║  EXERCISE 4: Add Bob smoke test analysis           ║
-// ╚════════════════════════════════════════════════════╝
-```
-
-Replace it with:
+Find the `EXTRA` comment in the Smoke Tests stage:
 
 ```groovy
 env.BOB_SMOKE_ANALYSIS = askBob("""Post-deployment smoke tests detected issues.
@@ -306,78 +299,12 @@ Be concise.""")
 echo "Bob's Smoke Test Analysis:\n${env.BOB_SMOKE_ANALYSIS}"
 ```
 
-### Test it
-
-Commit and push:
-
-```bash
-git add Jenkinsfile
-git commit -m "lab: add Bob smoke test triage"
-git push origin main
-```
-
-Run a build with `BRANCH=lab/smoke-failure`. This branch changes the health endpoint to return 503. All pipeline checks pass (lint, PCI, tests, security), the build and deploy succeed, but the smoke tests fail post-deployment. Bob should analyze the 503 and recommend rollback.
-
-> **Checkpoint:** Bob identifies the broken health endpoint and recommends rollback.
-
----
-
-## What you built
-
-You started with a pipeline that had no AI integration and added four capabilities:
-
-| What you added | Where | What it does |
-|---|---|---|
-| `askBob()` helper | Bottom of Jenkinsfile | Sends any prompt to Bob CLI and returns the response |
-| Failure diagnosis | PCI + Test stages | When a check fails, Bob explains why and how to fix it |
-| DCR generation | Approval stage | Bob writes a formal change management ticket from pipeline data |
-| Smoke test triage | Smoke Tests stage | When post-deploy checks fail, Bob recommends rollback or investigation |
-
-### The pattern
-
-Every integration point follows the same pattern:
-
-1. **Collect context** — gather the data Bob needs (diff, test output, scan results)
-2. **Write a clear prompt** — tell Bob what role to play, what data you're giving it, and what format you want back
-3. **Call `askBob()`** — send the prompt, get the response
-4. **Use the response** — display it in the console, feed it to the next stage, or show it at the approval gate
-
-This pattern works for any pipeline stage. Some other places teams integrate Bob:
-
-- **Post-deploy monitoring** — Bob analyzes logs and metrics after deployment
-- **Rollback decision** — when smoke tests fail, Bob recommends whether to rollback or investigate
-- **Environment config generation** — Bob generates properties files for new environments
-- **Incident response** — Bob analyzes alerts and suggests remediation steps
-
----
-
-## Bonus: Try it yourself
-
-Pick one of these and implement it on your own, following the same pattern:
-
-**A. PR summary** — Add a new stage after Checkout that asks Bob to summarize the PR diff:
-```
-"Summarize this PR for a code reviewer. Changed files: ${env.CHANGED_FILES}. Diff: [include diff output]. What is this change doing and what should the reviewer focus on?"
-```
-
-**B. Post-deploy status update** — Add a stage after Smoke Tests that asks Bob to write a status update for the change control ticket:
-```
-"The deployment is complete. Status: ${env.DEPLOY_STATUS}. Write a formal status update for the DCR ticket. Include: timestamp, verification results, whether the ticket can be closed."
-```
-
-**C. Environment config** — Use `make oc-bob` to ask Bob to generate a production properties file:
-```bash
-make oc-bob PROMPT="Analyze the order-service application. Generate application-prod-uk.properties for a production environment with an external PostgreSQL at db-prod.uk-cluster.internal:5432. Explain each setting."
-```
-
 ---
 
 ## Cleanup
 
-When you're done, you can tear everything down:
+When you're done, tear everything down:
 
 ```bash
 make teardown
 ```
-
-Or leave it running for further experimentation.

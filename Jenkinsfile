@@ -1,9 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════
 // SRE Pipeline — Baseline (no Bob integration)
 //
-// Runs lint, PCI compliance, tests, security scanning, an approval
-// gate, ArgoCD deployment, and smoke tests. No Bob AI calls.
-// See labs/Jenkinsfile.solution for the completed version with Bob.
+// This pipeline implements the client's 10-step regulated deployment
+// flow. It runs linting, PCI compliance, tests, security scanning,
+// an approval gate, ArgoCD deployment, and smoke tests — but has
+// NO Bob AI calls. You will add them in the lab exercises.
+//
+// See labs/solution/Jenkinsfile.solution for the completed version.
 // ═══════════════════════════════════════════════════════════════════
 
 pipeline {
@@ -66,11 +69,16 @@ spec:
             }
         }
 
-        // ── STEP 2: Standard Linting ────────────────────────────────────
+        // ── STEP 2: Bob PR Analysis ───────────────────────────────────
+        // ╔════════════════════════════════════════════════════════════╗
+        // ║  EXERCISE 2: Add a Bob PR Analysis stage here             ║
+        // ╚════════════════════════════════════════════════════════════╝
+
+        // ── STEP 3: Standard Linting ──────────────────────────────────
         stage('Lint') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 2: Standard Linting"
+                echo "  STEP 3: Standard Linting"
                 echo "══════════════════════════════════════════"
                 dir('order-service') {
                     sh 'mvn checkstyle:check -q'
@@ -79,47 +87,45 @@ spec:
             }
         }
 
-        // ── STEP 3: PCI Compliance ──────────────────────────────────────
+        // ── STEP 4: PCI Compliance ────────────────────────────────────
         stage('PCI Compliance Check') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 3: PCI Compliance Checks"
+                echo "  STEP 4: PCI Compliance Checks"
                 echo "══════════════════════════════════════════"
                 script {
                     dir('order-service') {
                         def result = sh(
-                            script: 'mvn checkstyle:check -Dcheckstyle.config.location=../pipeline/pci-checkstyle.xml 2>&1 | tee ${WORKSPACE}/pci-output.txt',
+                            script: 'set -o pipefail; mvn checkstyle:check -Dcheckstyle.config.location=../pipeline/pci-checkstyle.xml 2>&1 | tee ${WORKSPACE}/pci-output.txt',
                             returnStatus: true
                         )
                         if (result != 0) {
                             def output = sh(script: 'cat ${WORKSPACE}/pci-output.txt | tail -30', returnStdout: true).trim()
                             env.PCI_FAILED = 'true'
-
-                            // ╔════════════════════════════════════════════════════╗
-                            // ║  EXERCISE 2a: Add Bob PCI analysis here            ║
-                            // ╚════════════════════════════════════════════════════╝
-
                             echo "PCI compliance FAILED. Violations:\n${output}"
-                            unstable("PCI compliance check failed")
                         } else {
                             env.PCI_FAILED = 'false'
                             echo "PCI compliance check passed."
                         }
                     }
+
+                    if (env.PCI_FAILED == 'true') {
+                        unstable("PCI compliance check failed")
+                    }
                 }
             }
         }
 
-        // ── STEP 4: Unit Tests ──────────────────────────────────────────
+        // ── STEP 5: Unit Tests ────────────────────────────────────────
         stage('Test') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 4: Running Unit Tests"
+                echo "  STEP 5: Running Unit Tests"
                 echo "══════════════════════════════════════════"
                 script {
                     dir('order-service') {
                         def result = sh(
-                            script: 'mvn test 2>&1 | tee ${WORKSPACE}/test-output.txt',
+                            script: 'set -o pipefail; mvn test 2>&1 | tee ${WORKSPACE}/test-output.txt',
                             returnStatus: true
                         )
 
@@ -132,24 +138,27 @@ spec:
                             env.TEST_FAILED = 'true'
 
                             // ╔════════════════════════════════════════════════════╗
-                            // ║  EXERCISE 2b: Add Bob test analysis here           ║
+                            // ║  EXERCISE 3: Add Bob test failure analysis here    ║
                             // ╚════════════════════════════════════════════════════╝
 
                             echo "Tests FAILED:\n${testOutput}"
-                            unstable("Unit tests failed")
                         } else {
                             env.TEST_FAILED = 'false'
                         }
+                    }
+
+                    if (env.TEST_FAILED == 'true') {
+                        unstable("Unit tests failed")
                     }
                 }
             }
         }
 
-        // ── STEP 5: Security Scan ───────────────────────────────────────
+        // ── STEP 6: Security Scan ─────────────────────────────────────
         stage('Security Scan') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 5: Security Vulnerability Scan"
+                echo "  STEP 6: Security Vulnerability Scan"
                 echo "══════════════════════════════════════════"
                 script {
                     def scanResult = sh(
@@ -160,6 +169,11 @@ spec:
                     if (scanResult.contains('CRITICAL') || scanResult.contains('HIGH')) {
                         env.SECURITY_RISK = 'HIGH'
                         echo "Security scan found HIGH/CRITICAL vulnerabilities:\n${scanResult}"
+
+                        // ╔════════════════════════════════════════════════════╗
+                        // ║  EXERCISE 4: Add Bob security scan analysis here   ║
+                        // ╚════════════════════════════════════════════════════╝
+
                         unstable("Security scan found HIGH/CRITICAL vulnerabilities")
                     } else {
                         env.SECURITY_RISK = 'LOW'
@@ -169,20 +183,20 @@ spec:
             }
         }
 
-        // ── STEP 6: Approval Gate ───────────────────────────────────────
+        // ── STEP 7: Approval Gate ─────────────────────────────────────
         stage('Approval') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 6: Awaiting Approval"
+                echo "  STEP 7: Awaiting Approval"
                 echo "══════════════════════════════════════════"
                 script {
                     def pciStatus = env.PCI_FAILED == 'true' ? 'FAILED' : 'PASSED'
                     def testStatus = env.TEST_FAILED == 'true' ? 'FAILED' : 'PASSED'
 
-                    // ╔════════════════════════════════════════════════════════╗
-                    // ║  EXERCISE 3: Replace this manual summary with a        ║
-                    // ║  Bob-generated Deployment Change Request (DCR)        ║
-                    // ╚════════════════════════════════════════════════════════╝
+                    // ╔════════════════════════════════════════════════════════════╗
+                    // ║  EXTRA: Replace this manual summary with a                 ║
+                    // ║  Bob-generated Deployment Change Request (DCR)             ║
+                    // ╚════════════════════════════════════════════════════════════╝
 
                     try {
                         input message: """
@@ -206,11 +220,11 @@ Do you approve this deployment?
             }
         }
 
-        // ── STEP 7: Build Image ────────────────────────────────────────
+        // ── STEP 8: Build Image ───────────────────────────────────────
         stage('Build Image') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 7: Build Container Image"
+                echo "  STEP 8: Build Container Image"
                 echo "══════════════════════════════════════════"
                 script {
                     dir('order-service') {
@@ -229,11 +243,11 @@ Do you approve this deployment?
             }
         }
 
-        // ── STEP 8: Deploy via ArgoCD ─────────────────────────────────
+        // ── STEP 9: Deploy via ArgoCD ─────────────────────────────────
         stage('Deploy via ArgoCD') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 8: ArgoCD Sync"
+                echo "  STEP 9: ArgoCD Sync"
                 echo "══════════════════════════════════════════"
                 script {
                     echo "Triggering ArgoCD sync for order-service..."
@@ -262,11 +276,11 @@ Do you approve this deployment?
             }
         }
 
-        // ── STEP 8: Smoke Tests ─────────────────────────────────────────
+        // ── STEP 10: Smoke Tests ──────────────────────────────────────
         stage('Smoke Tests') {
             steps {
                 echo "══════════════════════════════════════════"
-                echo "  STEP 8: Post-Deployment Smoke Tests"
+                echo "  STEP 10: Post-Deployment Smoke Tests"
                 echo "══════════════════════════════════════════"
                 script {
                     sleep 10
@@ -287,7 +301,7 @@ Do you approve this deployment?
                         env.DEPLOY_STATUS = 'DEGRADED'
 
                         // ╔════════════════════════════════════════════════════╗
-                        // ║  EXERCISE 4: Add Bob smoke test analysis           ║
+                        // ║  EXTRA: Add Bob smoke test analysis here           ║
                         // ╚════════════════════════════════════════════════════╝
 
                         echo "Smoke tests detected issues."
