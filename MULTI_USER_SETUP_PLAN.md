@@ -12,35 +12,48 @@ The proposed architecture is not only possible but follows Kubernetes/OpenShift 
 
 ```mermaid
 graph TB
-    subgraph "jenkins-project"
+    subgraph JP["jenkins-project"]
         Jenkins[Jenkins Controller]
         JenkinsAgent[Jenkins Agent Pod<br/>with Bob Sidecar]
         BobSecret[Bob API Key Secret]
+        
+        Jenkins -->|Creates| JenkinsAgent
+        JenkinsAgent -->|Reads| BobSecret
     end
     
-    subgraph "user1-project"
+    subgraph U1["user1-project"]
         U1App[Order Service]
         U1DB[PostgreSQL]
     end
     
-    subgraph "user2-project"
+    subgraph U2["user2-project"]
         U2App[Order Service]
         U2DB[PostgreSQL]
     end
     
-    subgraph "user20-project"
+    subgraph U20["user20-project"]
         U20App[Order Service]
         U20DB[PostgreSQL]
     end
     
-    Jenkins -->|Creates| JenkinsAgent
-    JenkinsAgent -->|Reads| BobSecret
-    JenkinsAgent -->|Deploys to| U1App
-    JenkinsAgent -->|Deploys to| U2App
-    JenkinsAgent -->|Deploys to| U20App
+    JP -->|Deploys to| U1
+    JP -->|Deploys to| U2
+    JP -.->|...| U20
+    JP -->|Deploys to| U20
     
-    style JenkinsAgent fill:#e1f5ff
-    style BobSecret fill:#fff4e1
+    style JP fill:#f0f0f0,stroke:#333,stroke-width:3px,color:#000
+    style U1 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#000
+    style U2 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#000
+    style U20 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#000
+    style Jenkins fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#000
+    style JenkinsAgent fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#000
+    style BobSecret fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
+    style U1App fill:#ffffff,stroke:#666,color:#000
+    style U1DB fill:#ffffff,stroke:#666,color:#000
+    style U2App fill:#ffffff,stroke:#666,color:#000
+    style U2DB fill:#ffffff,stroke:#666,color:#000
+    style U20App fill:#ffffff,stroke:#666,color:#000
+    style U20DB fill:#ffffff,stroke:#666,color:#000
 ```
 
 ---
