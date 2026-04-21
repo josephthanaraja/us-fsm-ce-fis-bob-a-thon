@@ -305,7 +305,7 @@ in this commit — askBob is still inline.
        def renderedFile = ".bob-prompt-${System.currentTimeMillis()}.txt"
        writeFile(file: renderedFile, text: rendered)
 
-       def modeFlag = mode ? "--mode ${mode}" : ""
+       def modeFlag = mode ? "--chat-mode ${mode}" : ""
 
        // NOTE: this stage still uses the per-user Bob pod via oc exec.
        // Stage 7 swaps this for the sidecar container('bob-cli') { ... } form.
@@ -352,7 +352,7 @@ Refactor askBob to load prompts from pipeline/prompts/ and accept a mode
 askBob now takes (promptName, vars, mode):
 - reads pipeline/prompts/${promptName}.md
 - substitutes ${VAR} placeholders from the vars map
-- adds --mode <slug> when supplied (e.g. 'sre-operator')
+- adds --chat-mode <slug> when supplied (e.g. 'sre-operator')
 
 All 8 callers in Jenkinsfile.solution updated to the new signature. Still
 targets the existing per-user bob-cli pod via oc exec — sidecar migration
@@ -608,7 +608,7 @@ registry where the dynamic agent pod will pull them.
        def renderedFile = ".bob-prompt-${System.currentTimeMillis()}.txt"
        writeFile(file: renderedFile, text: rendered)
 
-       def modeFlag = mode ? "--mode ${mode}" : ""
+       def modeFlag = mode ? "--chat-mode ${mode}" : ""
        def result = container('bob-cli') {
            sh(
                script: "bob -p \"\$(cat ${renderedFile})\" ${modeFlag} --hide-intermediary-output",
@@ -851,7 +851,7 @@ Each lab can define its own Bob mode (custom role definition + rules + tool perm
 
 1. **Bob discovers project modes from the workspace.** When the `bob` CLI starts, it reads `.bob/custom_modes.yaml` and `.bob/rules-<slug>/` from its current working directory.
 2. **The workspace is shared with the sidecar.** The Jenkins Kubernetes plugin mounts the same workspace volume into every container in the agent pod (this is also what makes `askBob` work — see Stage 7). When the pipeline runs `checkout scm`, the repo's `.bob/` directory lands in the workspace and becomes visible to the `bob-cli` sidecar.
-3. **`askBob` already accepts the mode.** The signature `askBob(promptName, vars, mode)` from Stage 3 passes `--mode <slug>` to the CLI when `mode` is supplied. Nothing else to wire up.
+3. **`askBob` already accepts the mode.** The signature `askBob(promptName, vars, mode)` from Stage 3 passes `--chat-mode <slug>` to the CLI when `mode` is supplied. Nothing else to wire up.
 
 The result: a lab adds a mode by adding files to its branch. The next pipeline run on that branch sees the new mode automatically. Participants can `cat .bob/custom_modes.yaml` or `ls .bob/rules-lab-N/` to see exactly what's shaping Bob's behavior — the mode is a first-class part of the lab content, not hidden inside an image.
 
@@ -917,7 +917,7 @@ This is a small change but it follows the same staged-commit rhythm as the rest 
 1. Create `.bob/rules-<lab-slug>/` and write the rule files.
 2. Append the mode entry to `.bob/custom_modes.yaml`.
 3. Update the relevant `askBob(...)` callsite in the Jenkinsfile to pass the new mode slug.
-4. **Test:** run the pipeline on a branch that includes the new mode files. Verify in the build log that Bob's response reflects the new role definition / rules. Confirm `bob -p "what mode are you in?" --mode <slug>` returns the expected mode when run inside the bob-cli container.
+4. **Test:** run the pipeline on a branch that includes the new mode files. Verify in the build log that Bob's response reflects the new role definition / rules. Confirm `bob -p "what mode are you in?" --chat-mode <slug>` returns the expected mode when run inside the bob-cli container.
 5. **Commit:** `Add <lab-slug> Bob mode and wire it into <stage> stage`
 6. ⏸ Wait for confirmation before moving on.
 
