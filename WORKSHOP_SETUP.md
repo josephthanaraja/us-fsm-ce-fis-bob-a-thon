@@ -144,7 +144,7 @@ The test pipeline's pod spec hardcodes the namespace for the Bob CLI image pull 
 
 ```bash
 # From repo root, on a branch you control
-# Open Jenkinsfile.sidecar-test and replace the namespace
+# Open Jenkinsfile and replace the namespace
 # Search for: fis-bobathon
 # Replace with: your project name from Step 2
 ```
@@ -152,7 +152,7 @@ The test pipeline's pod spec hardcodes the namespace for the Bob CLI image pull 
 Or via sed (adjust the project name):
 
 ```bash
-sed -i '' "s/fis-bobathon/$(oc project -q)/g" Jenkinsfile.sidecar-test
+sed -i '' "s/fis-bobathon/$(oc project -q)/g" Jenkinsfile
 ```
 
 Commit and push this change to the branch participants will fork from (typically `main` or a workshop-specific branch).
@@ -196,14 +196,14 @@ In Jenkins (logged in as `workshop-admin`):
    - **Repository URL:** your repo URL
    - **Credentials:** select `github-pat` (if private)
    - **Branch Specifier:** `*/main` (or whatever branch has the Jenkinsfile)
-   - **Script Path:** `Jenkinsfile.sidecar-test`
+   - **Script Path:** `Jenkinsfile` (or leave blank — it's the Jenkins default)
 5. **Save**, then **Build Now**
 
-Watch the Console Output. The pipeline should complete all 5 stages, ending with:
-- ✅ Custom mode 'sre-operator' is loaded and working!
-- A code-review analysis from Bob
+Watch the Console Output. The pipeline should complete the `Checkout` stage and finish `SUCCESS`, with the workspace contents listed — you should see `.bob/`, `Jenkinsfile`, `order-service/`, etc.
 
-If any stage fails, check the Troubleshooting section in [`docs/SIDECAR_MODE_TEST_PLAN.md`](docs/SIDECAR_MODE_TEST_PLAN.md#phase-8-troubleshooting-guide).
+The lab stages are placeholders until each lab colleague fleshes them out; this smoke test only proves that the agent pod provisions, both containers start, and the repo lands in the shared workspace volume.
+
+If the pipeline fails, see the Troubleshooting section below.
 
 ---
 
@@ -259,11 +259,11 @@ TechZone environments auto-expire anyway, but tearing down cleanly is a good hab
 Run `oc get template jenkins-persistent -n openshift` — if it returns `not found`, your cluster is missing the template. Options:
 
 - Use a different TechZone environment type (the "OpenShift sandbox" reservations typically have it)
-- Install the Jenkins Operator manually (out of scope for this doc; see the [sidecar test plan](docs/SIDECAR_MODE_TEST_PLAN.md) Phase 0.3 Option B)
+- Install the Jenkins Operator manually (out of scope for this doc)
 
 ### Pipeline fails with `ImagePullBackOff`
 
-The image URL in `Jenkinsfile.sidecar-test` probably still says `fis-bobathon` (or someone else's project). Revisit Step 6.
+The image URL in `Jenkinsfile` probably still says `fis-bobathon` (or someone else's project). Revisit Step 6.
 
 ### Participant login doesn't work
 
@@ -285,8 +285,6 @@ Double-check the password pattern: `user1` → `bobathon-1`, `user2` → `bobath
 
 ## References
 
-- [`docs/SIDECAR_MODE_TEST_PLAN.md`](docs/SIDECAR_MODE_TEST_PLAN.md) — deeper dive into the sidecar mechanism and how it was validated
-- [`docs/BOB_CLI_CUSTOM_MODES.md`](docs/BOB_CLI_CUSTOM_MODES.md) — how custom modes work and how Bob discovers them
 - [`k8s/openshift/jenkins-workshop/README.md`](k8s/openshift/jenkins-workshop/README.md) — workshop Jenkins kit internals, for teams adapting the kit
 - [Bob Shell docs](https://bob.ibm.com/docs)
 - [IBM TechZone](https://techzone.ibm.com/)

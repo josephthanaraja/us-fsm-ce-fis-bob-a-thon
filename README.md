@@ -1,220 +1,52 @@
-# SRE Deploy Lab
+# FIS Bob-a-thon Workshop
 
-**AI-Assisted Regulated Deployment Pipeline for Financial Services**
+Hands-on workshop that teaches participants to integrate [IBM Bob](https://bob.ibm.com) into a Jenkins CI pipeline across 5 progressive labs. Each lab adds one stage to a Jenkinsfile participants are building up.
 
-A hands-on demonstration of how IBM Bob integrates into a production CI/CD pipeline for regulated environments. Watch Bob analyze pull requests, diagnose failures, generate deployment change requests, and validate compliance—all within a real Jenkins pipeline deploying to OpenShift.
+## The Five Labs
 
----
+1. **PR / Git Diff Review** — Bob as a senior developer looking over a diff, calling out risks and summary.
+2. **Unit Testing** — generate Java unit tests with Bob, run them, add a pipeline test stage, Bob diagnoses failures.
+3. **Security Scanning** — run a security scan in the IDE, add a pipeline stage, Bob analyzes vulnerabilities.
+4. **Linting** — run a linter in the IDE, add a pipeline stage, Bob analyzes findings and posts a PR comment.
+5. **DCR & Reporting** — add a Deployment Change Request stage; Bob pushes the report to Jira via MCP.
 
-## Tech Stack
+Lab docs live in [`labs/`](labs/). Each lab is a single markdown file (`LAB1_PR_REVIEW.md`, etc.).
 
-- **Application**: Spring Boot 3.2, PostgreSQL 15, Maven
-- **CI/CD**: Jenkins, ArgoCD (GitOps)
-- **Platform**: OpenShift 4.18 (Kubernetes)
-- **Security**: Trivy vulnerability scanner, custom PCI Checkstyle rules
-- **AI**: IBM Bob CLI for analysis and automation
+## Starting Points
 
----
+- **Instructors / admins** setting up the workshop → [WORKSHOP_SETUP.md](WORKSHOP_SETUP.md)
+- **Workshop participants** → ask your instructor for your Jenkins credentials and assigned branch, then open `labs/LAB1_*.md`
+- **Lab contributors** building a new lab → [`labs/README.md`](labs/README.md)
 
-## What This Demonstrates
+## Pipeline Scaffolding
 
-This lab teaches you to integrate IBM Bob into a Jenkins pipeline at three critical points. By the end, you'll have:
+- **`Jenkinsfile`** — base pipeline (pod spec + Checkout stage, no Bob calls yet). Participants build on this.
+- **`Jenkinsfile.lab<N>solution`** — reference state after Lab N. Use to catch up if you fall behind.
+- **`Jenkinsfile.finalsolution`** — complete end-state with all 5 labs integrated.
 
-**Core Integration (Lab Exercises):**
-1. **Bob PR Analysis** → Analyzes code changes before checks run, identifies risks
-2. **Bob Test Diagnosis** → Explains test failures with root cause and fix suggestions
-3. **Bob Security Triage** → Analyzes CVEs and explains PCI compliance impact
-
-**Optional Extensions:**
-4. **Bob DCR Generation** → Creates formal Deployment Change Request with risk assessment
-5. **Bob Smoke Test Analysis** → Validates post-deployment health
-
-### The Pipeline Flow
-
-1. **Checkout** → Pull PR branch from GitHub
-2. **Bob PR Analysis** → Bob reviews the diff (Lab Exercise 2)
-3. **Lint** → Standard code quality checks
-4. **PCI Compliance** → Custom rules for regulated environments
-5. **Unit Tests** → Run tests, Bob diagnoses failures (Lab Exercise 3)
-6. **Security Scan** → Trivy finds CVEs, Bob explains impact (Lab Exercise 4)
-7. **Approval Gate** → Human reviews (optionally with Bob-generated DCR)
-8. **Build Image** → Package application into container
-9. **Deploy via ArgoCD** → GitOps sync to OpenShift
-10. **Smoke Tests** → Validate deployment health (optionally with Bob analysis)
-
-### Real-World Use Cases
-
-- **Failure diagnosis**: Bob turns raw stack traces and CVE tables into actionable fixes
-- **Compliance automation**: Bob explains PCI DSS violations in regulatory terms
-- **Risk assessment**: Bob evaluates all validation results and recommends approve/reject
-- **Environment configuration**: Bob generates environment-specific properties files
-
----
-
-## Architecture
-
-```mermaid
-graph TB
-    Dev[Developer] -->|Push branch| GH[GitHub]
-    Dev -->|Trigger build| Jenkins[Jenkins Pipeline]
-    
-    Jenkins -->|1. Checkout| GH
-    Jenkins -->|2. Ask Bob| Bob[Bob CLI Pod]
-    Jenkins -->|3-6. Validate| Checks[Lint + PCI + Tests + Security]
-    
-    Bob -->|Analyze PR| Jenkins
-    Bob -->|Diagnose failures| Jenkins
-    Bob -->|Explain CVEs| Jenkins
-    
-    Jenkins -->|7. Request approval| Mgmt[Management]
-    Mgmt -->|Approve/Reject| Jenkins
-    
-    Jenkins -->|8. Build image| Registry[OpenShift Registry]
-    Jenkins -->|9. Trigger sync| ArgoCD[ArgoCD]
-    ArgoCD -->|Watch repo| GH
-    ArgoCD -->|Deploy| OCP[OpenShift Cluster]
-    
-    Jenkins -->|10. Smoke tests| OCP
-    
-    OCP -->|Running| App[Order Service + PostgreSQL]
-    
-    style Bob fill:#e1f5ff
-    style Jenkins fill:#fff4e1
-    style ArgoCD fill:#e8f5e9
-    style OCP fill:#f3e5f5
-```
-
----
-
-## Pipeline Flow with Bob Integration
-
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant GH as GitHub
-    participant J as Jenkins
-    participant B as Bob CLI
-    participant T as Trivy
-    participant A as ArgoCD
-    participant OCP as OpenShift
-
-    Dev->>GH: Push branch
-    Dev->>J: Trigger build manually
-    
-    J->>GH: Checkout branch
-    
-    rect rgb(225, 245, 255)
-        Note over J,B: Lab Exercise 2: PR Analysis
-        J->>B: Analyze PR diff
-        B->>J: Risk assessment + summary
-    end
-    
-    J->>J: Run lint
-    J->>J: Run PCI compliance checks
-    J->>J: Run unit tests
-    
-    alt Tests fail
-        rect rgb(225, 245, 255)
-            Note over J,B: Lab Exercise 3: Test Diagnosis
-            J->>B: Diagnose test failures
-            B->>J: Root cause + fix suggestion
-        end
-    end
-    
-    J->>T: Security scan
-    
-    alt CVEs found
-        rect rgb(225, 245, 255)
-            Note over J,B: Lab Exercise 4: Security Triage
-            J->>B: Analyze vulnerabilities
-            B->>J: PCI impact + remediation
-        end
-    end
-    
-    rect rgb(245, 245, 245)
-        Note over J,B: Optional: DCR Generation
-        J->>B: Generate DCR
-        B->>J: Formal change request
-    end
-    
-    J->>Dev: Request approval
-    Dev->>J: Approve/Reject
-    
-    alt Approved
-        J->>J: Build container image
-        J->>A: Trigger ArgoCD sync
-        A->>GH: Pull manifests
-        A->>OCP: Deploy
-        
-        J->>OCP: Run smoke tests
-        
-        rect rgb(245, 245, 245)
-            Note over J,B: Optional: Smoke Test Analysis
-            J->>B: Analyze health
-            B->>J: Deployment status
-        end
-    end
-```
-
----
-
-## Key Features
-
-### 🤖 AI-Assisted Failure Diagnosis
-- **PR Analysis**: Bob reviews code changes and identifies risks before checks run
-- **Test Diagnosis**: Bob explains test failures with root cause and specific fix suggestions
-- **Security Triage**: Bob analyzes CVEs and explains PCI compliance impact with remediation steps
-
-### 🔒 PCI Compliance Validation
-- Custom Checkstyle rules for PCI DSS requirements
-- Detects hardcoded credentials, insecure logging, weak cryptography
-- Bob explains violations in regulatory terms
-
-### 📋 Optional: Change Management Automation
-- Bob can generate formal Deployment Change Requests (DCRs)
-- Includes change description, risk level, affected services, rollback plan
-- Provides recommendation with justification for approval gates
-
-### ⚙️ Environment Configuration Support
-- Bob analyzes application code to determine required properties
-- Generates environment-specific configuration files (dev, staging, prod)
-- Explains each setting and why it matters for production
-
----
-
-## Project Structure
+## Repository Layout
 
 ```
-├── order-service/        # Spring Boot CRUD API (the application)
-│   ├── src/             # Java source code
-│   ├── Dockerfile       # Container image definition
-│   └── pom.xml          # Maven build configuration
-│
-├── k8s/                 # Kubernetes manifests
-│   ├── *-deployment.yaml
-│   ├── *-service.yaml
-│   └── openshift/       # Setup scripts for OpenShift
-│
-├── pipeline/            # CI/CD pipeline configurations
-│   ├── pci-checkstyle.xml    # PCI compliance rules
-│   └── smoke-test.sh         # Post-deployment validation
-│
-├── labs/                # Hands-on lab exercises
-│   └── LAB_BOB_PIPELINE.md   # Add Bob to your pipeline
-│
-├── Jenkinsfile          # Complete 10-step pipeline
-├── Makefile             # All commands as make targets
-├── SETUP.md             # Detailed setup guide
-└── README.md            # This file
+.bob/custom_modes.yaml        Bob custom mode definitions (solution + participant)
+.bob/mcp.json                 Bob MCP server registrations (Jira added in Lab 5)
+Jenkinsfile*                  Base + progressive solution Jenkinsfiles
+WORKSHOP_SETUP.md             Instructor setup guide
+labs/                         Per-lab participant instructions
+order-service/                Spring Boot app — subject matter for all labs
+k8s/openshift/
+├── bob-cli-sidecar/          Bob CLI container image
+├── jenkins-agent/            Jenkins agent container image (tools for pipeline)
+└── jenkins-workshop/         Reusable Jenkins deploy kit (no OAuth, pre-made users)
 ```
 
----
+## Under the Hood
 
-## Learning Path
+Each pipeline build spins up a Kubernetes pod with two containers:
+- `jenkins-agent` — runs pipeline shell steps (builds, tests, scans, lints)
+- `bob-cli` — runs Bob CLI when the pipeline invokes it via `container('bob-cli') { ... }`
 
-1. **[SETUP.md](SETUP.md)** — Deploy the lab environment to OpenShift (~20 minutes)
-2. **[LAB_BOB_PIPELINE.md](labs/LAB_BOB_PIPELINE.md)** — Add Bob integration to the pipeline (~30 minutes)
-3. **Run demo scenarios** — Test the three branches to see Bob in action
-4. **Explore optional labs** — MCP integration, custom modes, skills (labs/optional/)
+Both containers share an `emptyDir` workspace volume at `/workspace`. When the pipeline does `checkout scm`, the repo lands there, and Bob reads `.bob/custom_modes.yaml` directly from it — so any mode on the participant's branch is available at pipeline runtime without rebuilding any image.
 
----
+## Licensing / Attribution
+
+[Add appropriate attribution here when ready for external use.]
