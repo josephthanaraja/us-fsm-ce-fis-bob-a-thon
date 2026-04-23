@@ -8,7 +8,7 @@ Updated as new issues surface during the dry run.
 
 ## 1. Bob image / secret / env naming
 
-**Files:** `setup/INSTRUCTOR_SETUP_TZ.md` (§1.2, §1.3, §1.3.1, §5.1, §5.2, troubleshooting, rotate-key), `setup/INSTRUCTOR_SETUP_NotTZ.md` (mirror), `setup/assets/template-jenkins-pipeline` lines 35/38/39.
+**Files:** `setup/INSTRUCTOR_SETUP_TZ.md` (§1.2, §1.3, §1.3.1, §5.1, §5.2, troubleshooting, rotate-key), `setup/INSTRUCTOR_SETUP_NotTZ.md` (mirror).
 
 **Current:** `bob-api-key` / key `api-key` / env `BOB_API_KEY`.
 **Needed:** `bob-cli-credentials` / key `BOBSHELL_API_KEY` / env `BOBSHELL_API_KEY`.
@@ -57,11 +57,29 @@ Use `$REGISTRY` in the `podman login/tag/push` commands with `--tls-verify=false
 **Files:** `setup/assets/template-jenkins-values_v2.yaml` (JCasC block) + `setup/INSTRUCTOR_SETUP_TZ.md` (missing step between §3.2 and §4).
 
 **Current:** Values file sets `JCasC.defaultConfig: false` and `configScripts: {}`. No Kubernetes cloud gets configured, and no step in the doc creates one. First pipeline run fails with `ERROR: No Kubernetes cloud was found.`
-**Needed:** Either
-- flip to `JCasC.defaultConfig: true` and let the chart auto-configure a `kubernetes` cloud, **or**
-- add an explicit `clouds.kubernetes` block in `configScripts` (namespace `jenkins`, `jenkinsUrl: http://jenkins.jenkins.svc.cluster.local:8080`, `jenkinsTunnel: jenkins-agent.jenkins.svc.cluster.local:50000`), **or**
-- add a new §3.3 documenting the UI / Script Console cloud setup.
-**Why:** Without a cloud, `agent { kubernetes { ... } }` blocks can't provision pods — blocks every pipeline in the workshop.
+**Needed:** Add an explicit `configScripts.kubernetes-cloud` block to `template-jenkins-values_v2.yaml`:
+
+```yaml
+controller:
+  JCasC:
+    enabled: true
+    overwriteConfiguration: true
+    defaultConfig: false
+    configScripts:
+      kubernetes-cloud: |
+        jenkins:
+          clouds:
+            - kubernetes:
+                name: "kubernetes"
+                namespace: "{{ .Release.Namespace }}"
+                jenkinsUrl: "http://jenkins.{{ .Release.Namespace }}.svc.cluster.local:8080"
+                jenkinsTunnel: "jenkins-agent.{{ .Release.Namespace }}.svc.cluster.local:50000"
+                containerCapStr: "10"
+```
+
+The Jenkins chart runs `tpl` on configScripts values, so `{{ .Release.Namespace }}` is resolved at `helm install` time — works in any namespace without editing the file.
+
+**Why:** Without a cloud, `agent { kubernetes { ... } }` blocks can't provision pods — blocks every pipeline in the workshop. Declarative placement avoids adding a post-install Groovy step; the cloud exists the moment Jenkins finishes starting.
 
 ---
 
@@ -101,15 +119,9 @@ Include a note that "Scope: Global" refers to URL domain, not visibility.
 
 ---
 
-## 8. `template-jenkins-pipeline` pod spec incomplete
+## 8. ~~`template-jenkins-pipeline` pod spec incomplete~~ — resolved by deletion
 
-**File:** `setup/assets/template-jenkins-pipeline`.
-
-**Current:** 3-container pod with no `volumes:`, no `workingDir:`, no `HOME` env on the `bob` container.
-**Needed:** Either
-- add an explicit named `workspace-volume` emptyDir at pod level, plus `volumeMounts`, `workingDir: /workspace`, and `env: HOME=/workspace` on every container (matches our working `Jenkinsfile` and `Jenkinsfile.test` pattern), **or**
-- delete the file (participants follow `Jenkinsfile.lab*solution` directly; the template is stale and doesn't match the 5-lab scope).
-**Why:** The Jenkins Kubernetes plugin's implicit workspace-sharing is plugin-version-dependent and doesn't play well with our Bob image's `WORKDIR /workspace` + `HOME=/workspace` and OpenShift's random-UID-in-group-0 model.
+Resolved: `setup/assets/template-jenkins-pipeline` has been deleted. The 3-container pod-spec pattern with explicit shared volumes is preserved in `Jenkinsfile.test` and will be applied to every other Jenkinsfile during Step 3 of the adoption plan.
 
 ---
 
@@ -130,9 +142,7 @@ Grouped by target file so Phase 2 commits can be file-scoped per `ADOPT_INSTRUCT
 **`setup/assets/template-jenkins-values_v2.yaml`:**
 - [ ] #5 Resolve cloud config — flip `JCasC.defaultConfig: true` or add an explicit `clouds.kubernetes` block in `configScripts`
 
-**`setup/assets/template-jenkins-pipeline`:**
-- [ ] #1 Bob naming (lines 35/38/39)
-- [ ] #8 Add shared-volume / workingDir / HOME mechanics — or delete the file
+**`setup/assets/template-jenkins-pipeline`:** deleted — no edits needed.
 
 **`setup/INSTRUCTOR_SETUP_NotTZ.md`:**
 - [ ] Mirror TZ changes — or delete per adoption plan §9.1
