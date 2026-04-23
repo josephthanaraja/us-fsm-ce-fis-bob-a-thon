@@ -1,0 +1,171 @@
+// ═══════════════════════════════════════════════════════════════════
+// FIS Bob-a-thon — Post-Cleanup Smoke Test (Jenkinsfile.test)
+//
+// End-to-end sanity test after the cleanup. Proves:
+//   1. Agent pod provisions both containers (jenkins-agent + bob-cli)
+//      and `checkout scm` lands in /workspace
+//   2. Maven + JDK17 still work in the trimmed jenkins-agent image
+//      (Lab 2 baseline)
+//   3. Bob CLI loads the solution-code-reviewer custom mode from the
+//      repo's .bob/custom_modes.yaml and can review code end-to-end
+//      (Lab 1 baseline)
+//
+// Delete this file once the real lab solution Jenkinsfiles are built.
+//
+// Before running: if your OpenShift project is NOT named
+// `fis-bobathon-test`, update the two image URLs below.
+// ═══════════════════════════════════════════════════════════════════
+
+pipeline {
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins-agent: fis-bobathon-test-test
+spec:
+  serviceAccountName: jenkins
+  containers:
+
+  - name: jenkins-agent
+    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon-test/jenkins-agent:latest
+    command: ['sleep']
+    args: ['infinity']
+    workingDir: /workspace
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /workspace
+    env:
+    - name: HOME
+      value: /workspace
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1"
+
+  - name: bob-cli
+    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon-test/bob-cli-sidecar:latest
+    command: ['sleep']
+    args: ['infinity']
+    workingDir: /workspace
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /workspace
+    env:
+    - name: BOBSHELL_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: bob-cli-credentials
+          key: BOBSHELL_API_KEY
+    - name: BOB_ACCEPT_LICENSE
+      value: "true"
+    - name: HOME
+      value: /workspace
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+
+  volumes:
+  - name: workspace-volume
+    emptyDir: {}
+"""
+            defaultContainer 'jenkins-agent'
+        }
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "=== Checking out repository ==="
+                checkout scm
+
+                echo "=== Verifying workspace contents ==="
+                sh '''
+                    echo "Current directory: $(pwd)"
+                    ls -la
+                    echo ""
+                    echo ".bob/ contents:"
+                    ls -la .bob/
+                '''
+            }
+        }
+
+        stage('Lab 2 preview — Maven compile') {
+            steps {
+                dir('order-service') {
+                    sh '''
+                        mvn --version
+                        mvn -B -DskipTests compile
+                    '''
+                }
+            }
+        }
+
+        stage('Lab 1 preview — Bob code review via custom mode') {
+            steps {
+                container('bob-cli') {
+                    script {
+                        echo "=== Sanity-checking bob + custom mode load ==="
+                        def sanity = sh(
+                            script: '''
+                                bob --chat-mode solution-code-reviewer \
+                                    -p "Reply with exactly: CUSTOM_MODE_WORKING" \
+                                    --hide-intermediary-output 2>&1
+                            ''',
+                            returnStdout: true
+                        ).trim()
+
+                        echo "Response: ${sanity}"
+                        if (!sanity.contains("CUSTOM_MODE_WORKING")) {
+                            error("solution-code-reviewer mode did not load — check .bob/custom_modes.yaml is in the workspace and the slug matches")
+                        }
+
+                        echo ""
+                        echo "=== Real code review pass ==="
+                        def review = sh(
+                            script: '''
+                                bob --chat-mode solution-code-reviewer \
+                                    -p "Review the Java source files under order-service/src/main/java. In under 200 words: (1) summarize what the application does, and (2) list up to 3 quality or security observations." \
+                                    --hide-intermediary-output 2>&1
+                            ''',
+                            returnStdout: true
+                        ).trim()
+
+                        echo "Bob review:\n${review}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "=== Pipeline Complete — result: ${currentBuild.result ?: 'SUCCESS'} ==="
+        }
+        success {
+            echo ""
+            echo "All stages passed. The cleanup is validated end-to-end:"
+            echo "  - jenkins-agent image still has Maven + JDK17"
+            echo "  - bob-cli-sidecar still loads custom modes from the repo"
+            echo "  - solution-code-reviewer mode works against real code"
+            echo ""
+            echo "Safe to start building out the real lab solution Jenkinsfiles."
+        }
+        failure {
+            echo ""
+            echo "Check which stage failed:"
+            echo "  - Checkout: pod provisioning or git access"
+            echo "  - Maven compile: jenkins-agent image build may be stale (rebuild)"
+            echo "  - Bob review: check bob-cli-credentials secret + bob-cli-sidecar image"
+        }
+    }
+}

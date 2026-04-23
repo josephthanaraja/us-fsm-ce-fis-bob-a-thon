@@ -10,7 +10,7 @@
 // stage beneath it; see labs/LAB<N>_*.md for instructions.
 //
 // Before running: if your OpenShift project is NOT named
-// `fis-bobathon-test`, update the two image URLs below.
+// `fis-bobathon`, update the two image URLs below.
 // ═══════════════════════════════════════════════════════════════════
 
 pipeline {
@@ -21,14 +21,14 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    jenkins-agent: fis-bobathon-test
+    jenkins-agent: fis-bobathon
 spec:
   serviceAccountName: jenkins
   containers:
 
   # Jenkins Agent — runs pipeline shell steps
   - name: jenkins-agent
-    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon-test/jenkins-agent:latest
+    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon/jenkins-agent:latest
     command: ['sleep']
     args: ['infinity']
     workingDir: /workspace
@@ -48,7 +48,7 @@ spec:
 
   # Bob CLI Sidecar — invoked via container('bob-cli') { sh '...' } in lab stages
   - name: bob-cli
-    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon-test/bob-cli-sidecar:latest
+    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon/bob-cli-sidecar:latest
     command: ['sleep']
     args: ['infinity']
     workingDir: /workspace
