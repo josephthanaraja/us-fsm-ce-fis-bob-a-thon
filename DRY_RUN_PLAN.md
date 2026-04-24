@@ -27,7 +27,7 @@ All renames are applied via local sed pipes and inline commands — no files in 
 
 ## Three deliberate deviations from the original setup docs
 
-1. **Bob image source.** The doc says "tag and push `bob-cli:latest`" but doesn't include a Dockerfile. Build from `k8s/openshift/bob-cli-sidecar/Dockerfile` (in this repo).
+1. **Bob image source.** The doc says "tag and push `bob-cli:latest`" but doesn't include a Dockerfile. Build from `setup/bob-cli/Dockerfile` (in this repo).
 2. **Secret naming.** Create the secret as `bob-cli-credentials` with key `BOBSHELL_API_KEY`. Our Bob binary reads `BOBSHELL_API_KEY` from env and won't authenticate under the doc's `bob-api-key` / `api-key` names.
 3. **Test pipeline pod spec.** Use the corrected pipeline in step 18. It keeps the 3-container shape from the doc but adds explicit shared-volume + `workingDir` + `HOME=/workspace` on every container — see [Why the explicit pod spec](#why-the-explicit-pod-spec) below.
 
@@ -297,7 +297,7 @@ done
 Build from our Dockerfile, tagged as `bob-cli:latest` (keeping the doc's image name).
 
 ```bash
-cd k8s/openshift/bob-cli-sidecar
+cd setup/bob-cli
 podman build -t bob-cli:latest .
 cd -
 ```

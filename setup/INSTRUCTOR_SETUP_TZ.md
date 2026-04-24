@@ -63,7 +63,7 @@ OpenShift Cluster
 │   ├── Jenkins master pod
 │   ├── Ephemeral agent pods        ← spun up per build, auto-deleted
 │   ├── bob-cli ImageStream
-│   ├── Secret: bob-api-key         ← Kubernetes secret, independent of Jenkins PVC
+│   ├── Secret: bob-cli-credentials ← Kubernetes secret, independent of Jenkins PVC
 │   └── Jenkins credentials store  ← holds user GitHub PATs only
 │
 ├── user01-dev/                     ← user01's isolated target namespace
@@ -84,15 +84,15 @@ Every pipeline run spins up a Kubernetes pod in the `jenkins` namespace containi
 |---|---|---|
 | `build-tools` | `maven:3.9-eclipse-temurin-17` | Compile, unit tests, package |
 | `oc-tools` | `quay.io/openshift/origin-cli:latest` | `oc start-build`, `oc rollout`, GitHub Status API calls |
-| `bob` | `<internal-registry>/jenkins/bob-cli:latest` | AI code review (Lab 5). `BOB_API_KEY` injected at runtime. |
+| `bob` | `<internal-registry>/jenkins/bob-cli:latest` | AI code review (Lab 5). `BOBSHELL_API_KEY` injected at runtime. |
 
 > **Note:** The pod is deleted automatically when the pipeline finishes. Users never interact with it directly.
 
 #### 1.3.1 Credential Flow
 
 ```
-Kubernetes Secret: bob-api-key (jenkins namespace)
-└── mounted as $BOB_API_KEY in bob sidecar container via secretKeyRef
+Kubernetes Secret: bob-cli-credentials (jenkins namespace)
+└── mounted as $BOBSHELL_API_KEY in bob sidecar container via secretKeyRef
 
 Jenkins Credential Store
 └── userXX-github-pat  → $GITHUB_TOKEN in oc-tools container
@@ -409,24 +409,47 @@ Jenkins starts with the Kubernetes plugin installed but no Cloud configured (the
 
 ### 5.1 Build and push IBM Bob image
 
-1. Log into the OpenShift internal registry
+1. Build the image from the Dockerfile in this repo:
 
     ```bash
-    podman login \
-      -u $(oc whoami) \
-      -p $(oc whoami -t) \
-      image-registry.openshift-image-registry.svc:5000
+    cd setup/bob-cli
+    podman build -t bob-cli:latest .
+    cd -
     ```
 
-1. Tag and push into the jenkins namespace (you may have to get the image registry route)
+1. Expose the OpenShift internal image registry externally so you can push from your laptop. TechZone clusters don't have this route by default:
 
     ```bash
-    podman tag bob-cli:latest \
-      image-registry.openshift-image-registry.svc:5000/jenkins/bob-cli:latest
+    oc patch configs.imageregistry.operator.openshift.io/cluster \
+      --type merge -p '{"spec":{"defaultRoute":true}}'
 
-    podman push \
-      image-registry.openshift-image-registry.svc:5000/jenkins/bob-cli:latest
+    # Wait for the route to appear (usually <30 seconds)
+    until oc get route default-route -n openshift-image-registry >/dev/null 2>&1; do sleep 2; done
+
+    REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
+    echo "Registry route: $REGISTRY"
     ```
+
+1. Log into the registry. The `-u` value is a literal dummy — the OpenShift registry only validates the bearer token from `-p`, not the username. Using `$(oc whoami)` directly breaks when it resolves to `kube:admin` because the colon makes podman read the value as `user:password`:
+
+    ```bash
+    podman login -u unused -p "$(oc whoami -t)" --tls-verify=false "$REGISTRY"
+    ```
+
+1. Tag and push into the `jenkins` namespace. The route uses a self-signed cert, so `--tls-verify=false` is required on push:
+
+    ```bash
+    podman tag bob-cli:latest "$REGISTRY/jenkins/bob-cli:latest"
+    podman push --tls-verify=false "$REGISTRY/jenkins/bob-cli:latest"
+    ```
+
+1. Verify the ImageStream was created:
+
+    ```bash
+    oc get imagestream bob-cli -n jenkins
+    ```
+
+    Expected: a row with tag `latest`.
 
 ### 5.2 Create the Bob API Key Kubernetes Secret
 
@@ -438,21 +461,21 @@ This approach is preferred over a Jenkins credential because:
 - It is manageable with standard `oc` commands and compatible with GitOps/Vault/External Secrets
 - Rotation requires a single `oc apply` with no Jenkins UI interaction
 
-1. Create the Kubernetes Secret
+1. Create the Kubernetes Secret. The secret name and key must match what the Bob Shell CLI reads from env (`BOBSHELL_API_KEY`); anything else and Bob silently fails to authenticate even though the key is present in the pod:
 
     ```bash
-    oc create secret generic bob-api-key \
-      --from-literal=api-key=<your-bob-api-key> \
+    oc create secret generic bob-cli-credentials \
+      --from-literal=BOBSHELL_API_KEY=<your-bob-api-key> \
       -n jenkins
     ```
 
-1. Grant the Jenkins ServiceAccount read access to the secret
+1. Grant the Jenkins ServiceAccount read access to the secret:
 
     ```bash
     oc create role bob-secret-reader \
       --verb=get \
       --resource=secrets \
-      --resource-name=bob-api-key \
+      --resource-name=bob-cli-credentials \
       -n jenkins
 
     oc create rolebinding bob-secret-reader \
@@ -461,7 +484,7 @@ This approach is preferred over a Jenkins credential because:
       -n jenkins
     ```
 
-    > **Note:** The secret value is never visible to users. It is injected directly into the bob container by Kubernetes before the container starts. There is no credential ID for users to reference in their Jenkinsfile for this key — it simply appears as the `$BOB_API_KEY` environment variable inside the bob container.
+    > **Note:** The secret value is never visible to users. It is injected directly into the bob container by Kubernetes before the container starts. There is no credential ID for users to reference in their Jenkinsfile for this key — it simply appears as the `$BOBSHELL_API_KEY` environment variable inside the bob container.
 
 ---
 
@@ -480,7 +503,7 @@ This approach is preferred over a Jenkins credential because:
 | `oc start-build` fails: `forbidden` | Re-run RBAC step: `oc adm policy add-role-to-user edit system:serviceaccount:jenkins:jenkins -n userXX-dev` |
 | `bob` container: `ImagePullBackOff` | Verify image exists: `oc get imagestream -n jenkins`. Re-run the `podman push` command from Step 2. |
 | GitHub PAT credential not found | User likely entered the wrong ID. It must be exactly `<github-username>-github-pat`. |
-| `BOB_API_KEY` shows `****` but bob fails | The key is reaching bob correctly. Check whether the env var name matches what bob expects (`bob --help`). |
+| `BOBSHELL_API_KEY` shows `****` but bob fails | The key is reaching bob correctly. Check whether the env var name matches what bob expects (`bob --help`). |
 | BuildConfig not found | Provisioning did not complete for that user. Re-run `provision-users.sh` scoped to that user. |
 | Jenkins `OOMKilled` | Scale up memory: `oc set resources statefulset/jenkins -n jenkins --limits=memory=6Gi` |
 
@@ -516,8 +539,8 @@ Because the key is a Kubernetes Secret, rotation requires no Jenkins UI interact
 
 ```bash
 # Rotate the key — dry-run generates the updated secret YAML, apply patches it in place
-oc create secret generic bob-api-key \
-  --from-literal=api-key=<new-bob-api-key> \
+oc create secret generic bob-cli-credentials \
+  --from-literal=BOBSHELL_API_KEY=<new-bob-api-key> \
   --dry-run=client -o yaml | oc apply -f -
 ```
 
