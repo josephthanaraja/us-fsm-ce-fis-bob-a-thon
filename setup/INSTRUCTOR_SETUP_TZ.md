@@ -10,21 +10,20 @@
 2. [Prerequisites](#2-prerequisites)
    - [Cluster Requirements](#21-cluster-requirements)
    - [Instructor Tooling](#22-instructor-tooling)
-3. [Cluster Setup](#3-cluster-setup)
-   - [Create Workshop User Accounts](#31-create-workshop-user-accounts)
-   - [Create participants group](#32-create-participants-group)
-   - [Create user projects](#33-create-user-projects)
-4. [Jenkins Setup](#4-jenkins-setup)
-   - [Deploy Jenkins](#41-deploy-jenkins)
-   - [Grant the Jenkins ServiceAccount the cluster permissions it needs](#42-grant-the-jenkins-serviceaccount-the-cluster-permissions-it-needs)
-   - [Configure Jenkins RBAC](#43-configure-jenkins-rbac)
-5. [IBM Bob CLI Setup](#5-ibm-bob-cli-setup)
-   - [Build and push IBM Bob image](#51-build-and-push-ibm-bob-image)
-   - [Create the Bob API Key Kubernetes Secret](#52-create-the-bob-api-key-kubernetes-secret)
+3. [Jenkins Setup](#3-jenkins-setup)
+   - [Deploy and Configure Jenkins](#31-deploy-and-configure-jenkins)
+   - [Grant the Jenkins ServiceAccount the cluster permissions it needs](#32-grant-the-jenkins-serviceaccount-the-cluster-permissions-it-needs)
+4. [IBM Bob CLI Setup](#4-ibm-bob-cli-setup)
+   - [Build and push IBM Bob image](#41-build-and-push-ibm-bob-image)
+   - [Create the Bob API Key Kubernetes Secret](#42-create-the-bob-api-key-kubernetes-secret)
+5. [Cluster Setup (optional)](#5-cluster-setup-optional)
+   - [Add Workshop User Accounts](#51-add-workshop-user-accounts)
+   - [Create participants group](#52-create-participants-group)
+   - [Create user projects](#53-create-user-projects)
 6. [Appendix / Reference](#appendix--reference)
-   - [Health Checks](#health-checks)
    - [Common Issues and Fixes](#common-issues-and-fixes)
    - [Cleanup](#cleanup)
+   - [Rotate the Bob API Key](#rotate-the-bob-api-key)
 
 ---
 
@@ -166,14 +165,13 @@ helm repo update
 
 #### 3.1.4 Create the Jenkins Values file
 
-1. Create a duplicate of the `setup/assets/template-jenkins-values_v2.yaml` file and call it `setup/assets/jenkins-values.yaml`.
-
-1. [OPTIONAL] Validate the YAML before installing:
+1. Copy the template into a working `jenkins-values.yaml`. This file is gitignored — safe to edit locally if you need to.
 
     ```bash
-    python3 -c "import yaml; yaml.safe_load(open('jenkins-values.yaml'))" \
-      && echo "YAML valid" || echo "YAML has errors — fix before installing"
+    cp setup/assets/template-jenkins-values_v2.yaml setup/assets/jenkins-values.yaml
     ```
+
+    > **Note:** If you edit the values file and something's malformed, `helm install` will surface the error in its output. No separate validation step needed.
 
 #### 3.1.5 Install Jenkins via Helm
 
@@ -345,69 +343,11 @@ Jenkins starts with the Kubernetes plugin installed but no Cloud configured (the
 
 ---
 
-## 4. Cluster Setup
-
-### 4.1 Add Workshop User Accounts
-
-> **This step is optional.** Participants do not need OpenShift console access to
-> complete the workshop labs. All pipeline interactions with OpenShift use the Jenkins
-> ServiceAccount. Skip this step unless you specifically want users to be able to view
-> their namespace in the OpenShift console.
-
-1. The cluster uses an OpenID identity provider managed externally. Add the users to the OpenShift reservation using the TechZone -> share reservation.
-
-1. After users have been provisioned and have logged in to OpenShift at least once (which creates their `User` object), grant each user access to only their own namespace:
-
-    ```bash
-    for i in $(seq -w 1 20); do
-      # Grant edit access to their own namespace only
-      oc adm policy add-role-to-user edit {USER} -n user${i}-dev
-
-      # Explicitly deny access to the jenkins namespace
-      # (no role binding = no access — this is the default, but explicit is clearer)
-    done
-    ```
-
-### 4.2 Create participants group
-
-1. Creating a group makes it easy to apply RBAC in bulk and to clean up afterwards:
-
-    ```bash
-    # Create the group
-    oc adm groups new workshop-participants
-    ```
-
-1. Add all the users to the group [TODO: CREATE SCRIPT TO AUTOMATE]
-
-    ```bash
-    # For each of the users
-    oc adm groups add-users workshop-participants ${i}
-    ```
-
-1. Verify the group:
-
-    ```bash
-    # Verify
-    oc get group workshop-participants -o yaml
-    ```
-
-### 4.3 Create user projects
-
-1. Edit the `USERS` array in the `create-projects.sh` file to match your participant list, then run the script to create the user projects and set up the privileges.
-
-1. Apply resource quotas to each user project [TODO: CREATE A SCRIPT TO AUTOMATE]
-
-    ```bash
-    oc apply -f workshop-user-project-quota.yaml -n ${USER}-dev
-    ```
-
----
-
-## 5. IBM Bob CLI Setup
+## 4. IBM Bob CLI Setup
 
 > **Important:** The API key must **not** be baked into the image. It will be injected at runtime.
 
-### 5.1 Build and push IBM Bob image
+### 4.1 Build and push IBM Bob image
 
 1. Build the image from the Dockerfile in this repo:
 
@@ -451,7 +391,7 @@ Jenkins starts with the Kubernetes plugin installed but no Cloud configured (the
 
     Expected: a row with tag `latest`.
 
-### 5.2 Create the Bob API Key Kubernetes Secret
+### 4.2 Create the Bob API Key Kubernetes Secret
 
 The bob API key is stored as a Kubernetes Secret in the `jenkins` namespace and mounted directly into the bob sidecar container via `secretKeyRef`. Jenkins never handles this secret — it is injected by Kubernetes at pod scheduling time.
 
@@ -485,6 +425,66 @@ This approach is preferred over a Jenkins credential because:
     ```
 
     > **Note:** The secret value is never visible to users. It is injected directly into the bob container by Kubernetes before the container starts. There is no credential ID for users to reference in their Jenkinsfile for this key — it simply appears as the `$BOBSHELL_API_KEY` environment variable inside the bob container.
+
+---
+
+## 5. Cluster Setup (optional)
+
+> **This section is optional.** Per-user OpenShift namespaces are only needed if your workshop includes labs where participants deploy workloads into their own sandbox namespaces. The 5-lab Bob-a-thon workshop is analysis-only (Bob runs against code in the pipeline) and doesn't require this section. Skip it unless a future lab adds a deploy step.
+
+### 5.1 Add Workshop User Accounts
+
+> **This step is optional.** Participants do not need OpenShift console access to
+> complete the workshop labs. All pipeline interactions with OpenShift use the Jenkins
+> ServiceAccount. Skip this step unless you specifically want users to be able to view
+> their namespace in the OpenShift console.
+
+1. The cluster uses an OpenID identity provider managed externally. Add the users to the OpenShift reservation using the TechZone -> share reservation.
+
+1. After users have been provisioned and have logged in to OpenShift at least once (which creates their `User` object), grant each user access to only their own namespace:
+
+    ```bash
+    for i in $(seq -w 1 20); do
+      # Grant edit access to their own namespace only
+      oc adm policy add-role-to-user edit {USER} -n user${i}-dev
+
+      # Explicitly deny access to the jenkins namespace
+      # (no role binding = no access — this is the default, but explicit is clearer)
+    done
+    ```
+
+### 5.2 Create participants group
+
+1. Creating a group makes it easy to apply RBAC in bulk and to clean up afterwards:
+
+    ```bash
+    # Create the group
+    oc adm groups new workshop-participants
+    ```
+
+1. Add all the users to the group [TODO: CREATE SCRIPT TO AUTOMATE]
+
+    ```bash
+    # For each of the users
+    oc adm groups add-users workshop-participants ${i}
+    ```
+
+1. Verify the group:
+
+    ```bash
+    # Verify
+    oc get group workshop-participants -o yaml
+    ```
+
+### 5.3 Create user projects
+
+1. Edit the `USERS` array in the `create-projects.sh` file to match your participant list, then run the script to create the user projects and set up the privileges.
+
+1. Apply resource quotas to each user project [TODO: CREATE A SCRIPT TO AUTOMATE]
+
+    ```bash
+    oc apply -f workshop-user-project-quota.yaml -n ${USER}-dev
+    ```
 
 ---
 

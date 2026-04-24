@@ -8,7 +8,7 @@ Updated as new issues surface during the dry run.
 
 ## 1. Bob image / secret / env naming
 
-**Files:** `setup/INSTRUCTOR_SETUP_TZ.md` (§1.2, §1.3, §1.3.1, §5.1, §5.2, troubleshooting, rotate-key), `setup/INSTRUCTOR_SETUP_NotTZ.md` (mirror).
+**Files:** `setup/INSTRUCTOR_SETUP_TZ.md` (§1.2, §1.3, §1.3.1, §4.1, §4.2, troubleshooting, rotate-key), `setup/INSTRUCTOR_SETUP_NotTZ.md` (mirror).
 
 **Current:** `bob-api-key` / key `api-key` / env `BOB_API_KEY`.
 **Needed:** `bob-cli-credentials` / key `BOBSHELL_API_KEY` / env `BOBSHELL_API_KEY`.
@@ -16,9 +16,9 @@ Updated as new issues surface during the dry run.
 
 ---
 
-## 2. Bob Dockerfile source missing from §5.1
+## 2. Bob Dockerfile source missing from §4.1
 
-**File:** `setup/INSTRUCTOR_SETUP_TZ.md` §5.1.
+**File:** `setup/INSTRUCTOR_SETUP_TZ.md` §4.1.
 
 **Current:** "Log into the OpenShift internal registry, tag and push `bob-cli:latest`" — no build step, no pointer to a Dockerfile.
 **Needed:** Add a `podman build` step referencing `k8s/openshift/bob-cli-sidecar/Dockerfile` (or wherever the canonical Dockerfile ends up post-Phase-2).
@@ -28,7 +28,7 @@ Updated as new issues surface during the dry run.
 
 ## 3. External image-registry route setup missing
 
-**File:** `setup/INSTRUCTOR_SETUP_TZ.md` §5.1.
+**File:** `setup/INSTRUCTOR_SETUP_TZ.md` §4.1.
 
 **Current:** Uses the in-cluster DNS `image-registry.openshift-image-registry.svc:5000`. Not reachable from a laptop on TechZone.
 **Needed:** Add a step to expose the external route before `podman login`:
@@ -44,7 +44,7 @@ Use `$REGISTRY` in the `podman login/tag/push` commands with `--tls-verify=false
 
 ## 4. `podman login -u` breaks on `kube:admin`
 
-**File:** `setup/INSTRUCTOR_SETUP_TZ.md` §5.1.
+**File:** `setup/INSTRUCTOR_SETUP_TZ.md` §4.1.
 
 **Current:** `podman login -u $(oc whoami) -p $(oc whoami -t) ...`.
 **Needed:** `podman login -u unused -p $(oc whoami -t) ...` (or any literal).
@@ -147,10 +147,10 @@ Grouped by the functional commits defined in `ADOPT_INSTRUCTOR_SETUP_PLAN.md` §
 
 **Commit D — Move Bob Dockerfile into `setup/` and reconcile the instructor doc** (`git mv` + `setup/INSTRUCTOR_SETUP_TZ.md`):
 - [ ] Move `k8s/openshift/bob-cli-sidecar/Dockerfile` into `setup/` (destination TBD)
-- [ ] #1 Bob naming across §1.2, §1.3, §1.3.1, §5.1, §5.2, troubleshooting, rotate-key
-- [ ] #2 Add `podman build` step in §5.1 referencing the new Dockerfile path
-- [ ] #3 Add external-route setup in §5.1 (registry exposure + `$REGISTRY` variable)
-- [ ] #4 Swap `-u $(oc whoami)` → `-u unused` in §5.1 podman login
+- [ ] #1 Bob naming across §1.2, §1.3, §1.3.1, §4.1, §4.2, troubleshooting, rotate-key
+- [ ] #2 Add `podman build` step in §4.1 referencing the new Dockerfile path
+- [ ] #3 Add external-route setup in §4.1 (registry exposure + `$REGISTRY` variable)
+- [ ] #4 Swap `-u $(oc whoami)` → `-u unused` in §4.1 podman login
 
 **Deferred to Phase 3 (user-facing lab docs):**
 - #7 Explicit "Add GitHub PAT" navigation — belongs in `labs/00_SETUP.md`, not the instructor doc

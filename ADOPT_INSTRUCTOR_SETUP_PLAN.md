@@ -22,7 +22,7 @@ Apply the fixes from `CHANGES_NEEDED.md` so a fresh instructor can follow `INSTR
 |---|---|---|---|
 | A | **Add a Kubernetes cloud setup step to the instructor doc** | `setup/INSTRUCTOR_SETUP_TZ.md` (new §3.1.8 inside "Deploy and Configure Jenkins" with Groovy, matching the post-install Groovy pattern used by security setup and user creation) | #5 |
 | B | **Fix per-folder matrix auth — grant VIEW, remove DELETE** | `setup/INSTRUCTOR_SETUP_TZ.md` §3.1.7 Groovy block | #6, #9 |
-| D | **Move Bob Dockerfile into `setup/` and reconcile the instructor doc** | `git mv k8s/openshift/bob-cli-sidecar/Dockerfile setup/bob-cli/Dockerfile` + `setup/INSTRUCTOR_SETUP_TZ.md` §1.2, §1.3, §1.3.1, §5.1, §5.2, troubleshooting, rotate-key snippet + update stale path reference in `DRY_RUN_PLAN.md` step 15 | #1, #2, #3, #4 |
+| D | **Move Bob Dockerfile into `setup/` and reconcile the instructor doc** | `git mv k8s/openshift/bob-cli-sidecar/Dockerfile setup/bob-cli/Dockerfile` + `setup/INSTRUCTOR_SETUP_TZ.md` §1.2, §1.3, §1.3.1, §4.1, §4.2, troubleshooting, rotate-key snippet + update stale path reference in `DRY_RUN_PLAN.md` step 15 | #1, #2, #3, #4 |
 
 Details for each commit follow below. Each includes what we observed during the dry run, the proposed change, and why — intended to be readable by whoever originally wrote `setup/`.
 
@@ -102,9 +102,9 @@ Keep `Run.DELETE` — that's a separate permission scoped to deleting individual
 
 - `git mv k8s/openshift/bob-cli-sidecar/Dockerfile setup/bob-cli/Dockerfile` — moving into the `setup/` tree (sibling to `setup/assets/` and `setup/scripts/`) and dropping the `-sidecar` suffix, since "sidecar" was describing its pipeline role rather than its identity.
 - `DRY_RUN_PLAN.md` step 15 — update `cd k8s/openshift/bob-cli-sidecar` to `cd setup/bob-cli` so the dry-run doc still works if anyone re-runs it to verify Phase 1.
-- `setup/INSTRUCTOR_SETUP_TZ.md` — §1.2 (namespace diagram), §1.3 + §1.3.1 (per-build pod table + credential flow), §5.1 (Bob image build and push), §5.2 (Bob API key secret), troubleshooting table entry, rotate-key snippet.
+- `setup/INSTRUCTOR_SETUP_TZ.md` — §1.2 (namespace diagram), §1.3 + §1.3.1 (per-build pod table + credential flow), §4.1 (Bob image build and push), §4.2 (Bob API key secret), troubleshooting table entry, rotate-key snippet.
 
-Five related issues across the file move, §5.1, and §5.2 that collectively tell one story — "getting the Bob image into the cluster and authenticated" — and splitting them would leave the doc in an inconsistent state (e.g., new secret name referenced by §1.3 but old name in §5.2; doc referencing a Dockerfile path that no longer exists). Bundled into one commit for that reason.
+Five related issues across the file move, §4.1, and §4.2 that collectively tell one story — "getting the Bob image into the cluster and authenticated" — and splitting them would leave the doc in an inconsistent state (e.g., new secret name referenced by §1.3 but old name in §4.2; doc referencing a Dockerfile path that no longer exists). Bundled into one commit for that reason.
 
 **Issue 0 — Dockerfile lives outside `setup/`.** The coworker's original Dockerfile was on the `instructor-setup` branch at `k8s/openshift/bob-cli/` and got dropped in the merge. The only Dockerfile currently in `main` is `k8s/openshift/bob-cli-sidecar/Dockerfile`, which lives in a tree that's otherwise unrelated to the `setup/` toolchain. Since the instructor doc is the consumer of this Dockerfile during workshop bring-up, the file naturally belongs alongside the other `setup/` assets.
 
@@ -118,18 +118,18 @@ Five related issues across the file move, §5.1, and §5.2 that collectively tel
 
 Our shipping Bob Shell CLI binary reads `BOBSHELL_API_KEY` from env. Under the current names, the secret mounts correctly but Bob can't find its API key and authentication fails. During the dry run we created the secret with the CLI's expected names as a local deviation.
 
-*Proposed change:* use the names the CLI actually reads — secret `bob-cli-credentials` with key `BOBSHELL_API_KEY` injected as env `BOBSHELL_API_KEY`. Affects §1.2 namespace diagram, §1.3 pod container table, §1.3.1 credential flow diagram, §5.2 `oc create secret` command and the `oc create role` resource-name immediately after, the troubleshooting table row about `BOB_API_KEY`, and the rotate-key snippet at the bottom.
+*Proposed change:* use the names the CLI actually reads — secret `bob-cli-credentials` with key `BOBSHELL_API_KEY` injected as env `BOBSHELL_API_KEY`. Affects §1.2 namespace diagram, §1.3 pod container table, §1.3.1 credential flow diagram, §4.2 `oc create secret` command and the `oc create role` resource-name immediately after, the troubleshooting table row about `BOB_API_KEY`, and the rotate-key snippet at the bottom.
 
-**Issue 2 — §5.1 has no Dockerfile build step.** The section starts with "Log into the OpenShift internal registry, tag and push `bob-cli:latest`" but doesn't describe where `bob-cli:latest` comes from. The original Dockerfile lived on the `instructor-setup` branch and wasn't carried through the merge into `main`. A fresh instructor has nothing to tag.
+**Issue 2 — §4.1 has no Dockerfile build step.** The section starts with "Log into the OpenShift internal registry, tag and push `bob-cli:latest`" but doesn't describe where `bob-cli:latest` comes from. The original Dockerfile lived on the `instructor-setup` branch and wasn't carried through the merge into `main`. A fresh instructor has nothing to tag.
 
-*Proposed change:* add a build step at the start of §5.1 referencing the Dockerfile at its new (post-Issue-0) location:
+*Proposed change:* add a build step at the start of §4.1 referencing the Dockerfile at its new (post-Issue-0) location:
 
 ```bash
 cd setup/bob-cli
 podman build -t bob-cli:latest .
 ```
 
-**Issue 3 — in-cluster registry URL is unreachable from the instructor's laptop.** §5.1's `podman login/tag/push` commands use `image-registry.openshift-image-registry.svc:5000`. That hostname is an in-cluster Service DNS entry — it resolves only from inside the cluster. From a laptop on a TechZone cluster, DNS resolution fails. The existing parenthetical ("*you may have to get the image registry route*") flags the issue without documenting the fix.
+**Issue 3 — in-cluster registry URL is unreachable from the instructor's laptop.** §4.1's `podman login/tag/push` commands use `image-registry.openshift-image-registry.svc:5000`. That hostname is an in-cluster Service DNS entry — it resolves only from inside the cluster. From a laptop on a TechZone cluster, DNS resolution fails. The existing parenthetical ("*you may have to get the image registry route*") flags the issue without documenting the fix.
 
 *Proposed change:* add a step to enable the registry's default route, then capture the external hostname and use it for login/tag/push:
 
