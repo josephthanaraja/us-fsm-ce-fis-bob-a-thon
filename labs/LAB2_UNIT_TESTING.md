@@ -147,3 +147,4 @@ In Jenkins, click **Build Now**. Watch:
 ---
 
 When you're ready, open [LAB3_SECURITY_SCANNING.md](LAB3_SECURITY_SCANNING.md).
+w

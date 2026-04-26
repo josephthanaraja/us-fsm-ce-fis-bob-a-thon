@@ -2,15 +2,17 @@
 // FIS Bob-a-thon — Base Pipeline (Jenkinsfile)
 //
 // Starting point for the 5-lab workshop. Provisions a Kubernetes
-// agent pod with two containers — jenkins-agent (for build tools)
-// and bob-cli (for Bob CLI invocations) — sharing an emptyDir
-// workspace volume mounted at /workspace.
+// agent pod with three containers — build-tools (Maven + JDK17),
+// oc-tools (OpenShift CLI), and bob (IBM Bob CLI) — sharing a
+// workspace-volume emptyDir mounted at /workspace on all three,
+// with HOME set to /workspace so Bob can read .bob/custom_modes.yaml
+// from the checkout.
 //
 // This file has a single Checkout stage. Each lab adds one more
 // stage beneath it; see labs/LAB<N>_*.md for instructions.
 //
-// Before running: if your OpenShift project is NOT named
-// `fis-bobathon-test`, update the two image URLs below.
+// Before running: if your OpenShift project is NOT named `jenkins`,
+// update the `bob` container image URL below.
 // ═══════════════════════════════════════════════════════════════════
 
 pipeline {
@@ -19,18 +21,12 @@ pipeline {
             yaml """
 apiVersion: v1
 kind: Pod
-metadata:
-  labels:
-    jenkins-agent: fis-bobathon-test
 spec:
   serviceAccountName: jenkins
   containers:
-
-  # Jenkins Agent — runs pipeline shell steps
-  - name: jenkins-agent
-    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon-test/jenkins-agent:latest
-    command: ['sleep']
-    args: ['infinity']
+  - name: build-tools
+    image: maven:3.9-eclipse-temurin-17
+    command: ['sleep', 'infinity']
     workingDir: /workspace
     volumeMounts:
     - name: workspace-volume
@@ -38,19 +34,19 @@ spec:
     env:
     - name: HOME
       value: /workspace
-    resources:
-      requests:
-        memory: "512Mi"
-        cpu: "250m"
-      limits:
-        memory: "1Gi"
-        cpu: "1"
-
-  # Bob CLI Sidecar — invoked via container('bob-cli') { sh '...' } in lab stages
-  - name: bob-cli
-    image: image-registry.openshift-image-registry.svc:5000/fis-bobathon-test/bob-cli-sidecar:latest
-    command: ['sleep']
-    args: ['infinity']
+  - name: oc-tools
+    image: quay.io/openshift/origin-cli:latest
+    command: ['sleep', 'infinity']
+    workingDir: /workspace
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /workspace
+    env:
+    - name: HOME
+      value: /workspace
+  - name: bob
+    image: image-registry.openshift-image-registry.svc:5000/jenkins/bob-cli:latest
+    command: ['sleep', 'infinity']
     workingDir: /workspace
     volumeMounts:
     - name: workspace-volume
@@ -65,19 +61,11 @@ spec:
       value: "true"
     - name: HOME
       value: /workspace
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "100m"
-      limits:
-        memory: "2Gi"
-        cpu: "500m"
-
   volumes:
   - name: workspace-volume
     emptyDir: {}
 """
-            defaultContainer 'jenkins-agent'
+            defaultContainer 'build-tools'
         }
     }
 

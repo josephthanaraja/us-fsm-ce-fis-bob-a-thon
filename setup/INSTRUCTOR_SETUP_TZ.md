@@ -10,21 +10,20 @@
 2. [Prerequisites](#2-prerequisites)
    - [Cluster Requirements](#21-cluster-requirements)
    - [Instructor Tooling](#22-instructor-tooling)
-3. [Cluster Setup](#3-cluster-setup)
-   - [Create Workshop User Accounts](#31-create-workshop-user-accounts)
-   - [Create participants group](#32-create-participants-group)
-   - [Create user projects](#33-create-user-projects)
-4. [Jenkins Setup](#4-jenkins-setup)
-   - [Deploy Jenkins](#41-deploy-jenkins)
-   - [Grant the Jenkins ServiceAccount the cluster permissions it needs](#42-grant-the-jenkins-serviceaccount-the-cluster-permissions-it-needs)
-   - [Configure Jenkins RBAC](#43-configure-jenkins-rbac)
-5. [IBM Bob CLI Setup](#5-ibm-bob-cli-setup)
-   - [Build and push IBM Bob image](#51-build-and-push-ibm-bob-image)
-   - [Create the Bob API Key Kubernetes Secret](#52-create-the-bob-api-key-kubernetes-secret)
+3. [Jenkins Setup](#3-jenkins-setup)
+   - [Deploy and Configure Jenkins](#31-deploy-and-configure-jenkins)
+   - [Grant the Jenkins ServiceAccount the cluster permissions it needs](#32-grant-the-jenkins-serviceaccount-the-cluster-permissions-it-needs)
+4. [IBM Bob CLI Setup](#4-ibm-bob-cli-setup)
+   - [Build and push IBM Bob image](#41-build-and-push-ibm-bob-image)
+   - [Create the Bob API Key Kubernetes Secret](#42-create-the-bob-api-key-kubernetes-secret)
+5. [Cluster Setup (optional)](#5-cluster-setup-optional)
+   - [Add Workshop User Accounts](#51-add-workshop-user-accounts)
+   - [Create participants group](#52-create-participants-group)
+   - [Create user projects](#53-create-user-projects)
 6. [Appendix / Reference](#appendix--reference)
-   - [Health Checks](#health-checks)
    - [Common Issues and Fixes](#common-issues-and-fixes)
    - [Cleanup](#cleanup)
+   - [Rotate the Bob API Key](#rotate-the-bob-api-key)
 
 ---
 
@@ -63,7 +62,7 @@ OpenShift Cluster
 │   ├── Jenkins master pod
 │   ├── Ephemeral agent pods        ← spun up per build, auto-deleted
 │   ├── bob-cli ImageStream
-│   ├── Secret: bob-api-key         ← Kubernetes secret, independent of Jenkins PVC
+│   ├── Secret: bob-cli-credentials ← Kubernetes secret, independent of Jenkins PVC
 │   └── Jenkins credentials store  ← holds user GitHub PATs only
 │
 ├── user01-dev/                     ← user01's isolated target namespace
@@ -84,15 +83,15 @@ Every pipeline run spins up a Kubernetes pod in the `jenkins` namespace containi
 |---|---|---|
 | `build-tools` | `maven:3.9-eclipse-temurin-17` | Compile, unit tests, package |
 | `oc-tools` | `quay.io/openshift/origin-cli:latest` | `oc start-build`, `oc rollout`, GitHub Status API calls |
-| `bob` | `<internal-registry>/jenkins/bob-cli:latest` | AI code review (Lab 5). `BOB_API_KEY` injected at runtime. |
+| `bob` | `<internal-registry>/jenkins/bob-cli:latest` | AI code review (Lab 5). `BOBSHELL_API_KEY` injected at runtime. |
 
 > **Note:** The pod is deleted automatically when the pipeline finishes. Users never interact with it directly.
 
 #### 1.3.1 Credential Flow
 
 ```
-Kubernetes Secret: bob-api-key (jenkins namespace)
-└── mounted as $BOB_API_KEY in bob sidecar container via secretKeyRef
+Kubernetes Secret: bob-cli-credentials (jenkins namespace)
+└── mounted as $BOBSHELL_API_KEY in bob sidecar container via secretKeyRef
 
 Jenkins Credential Store
 └── userXX-github-pat  → $GITHUB_TOKEN in oc-tools container
@@ -153,7 +152,7 @@ helm repo update
 1. The Jenkins chart runs as UID 1000. Apply the SCC binding before installing so it takes effect the moment Helm creates the ServiceAccount:
 
     ```bash
-    oc apply -f assets/jenkins-scc.yaml
+    oc apply -f setup/assets/jenkins-scc.yaml
     ```
 
     Verify:
@@ -166,20 +165,19 @@ helm repo update
 
 #### 3.1.4 Create the Jenkins Values file
 
-1. Create a duplicate of the `template-jenkins-values_v2.yaml` file and call it `jenkins-values.yaml`.
-
-1. [OPTIONAL] Validate the YAML before installing:
+1. Copy the template into a working `jenkins-values.yaml`. This file is gitignored — safe to edit locally if you need to.
 
     ```bash
-    python3 -c "import yaml; yaml.safe_load(open('jenkins-values.yaml'))" \
-      && echo "YAML valid" || echo "YAML has errors — fix before installing"
+    cp setup/assets/template-jenkins-values_v2.yaml setup/assets/jenkins-values.yaml
     ```
+
+    > **Note:** If you edit the values file and something's malformed, `helm install` will surface the error in its output. No separate validation step needed.
 
 #### 3.1.5 Install Jenkins via Helm
 
 ```bash
 helm install jenkins jenkins/jenkins \
-  -f assets/jenkins-values.yaml \
+  -f setup/assets/jenkins-values.yaml \
   -n jenkins \
   --wait \
   --timeout 10m
@@ -216,7 +214,7 @@ helm install jenkins jenkins/jenkins \
 1. Jenkins usually starts unsecured by default. Run the following script to generate the security setup for Jenkins (paste in the admin password from previous step.):
 
     ```bash
-    uv run scripts/generate-security-setup.py --password <admin-password>
+    uv run setup/scripts/generate-security-setup.py --password <admin-password>
     ```
 
 1. Navigate to `https://<jenkins-route>/script` in your browser.
@@ -232,7 +230,7 @@ Since JCasC is disabled to avoid startup issues, users are added using the Jenki
 1. Generate the user creation script:
 
     ```bash
-    uv run scripts/generate-jenkins-users_v2.py 20 --password Workshop2024!
+    uv run setup/scripts/generate-jenkins-users_v2.py 20 --password Workshop2024!
     ```
 
 1. Logged in as `admin`, go to `https://<jenkins-route>/script`, paste the output from the above user creation script, and click **Run**. Verify the output shows `Done — 20 users created`.
@@ -272,13 +270,13 @@ project-based matrix security, giving each user full control of only their own f
         prop.add(Item.CANCEL,     username)
         prop.add(Item.CONFIGURE,  username)
         prop.add(Item.CREATE,     username)
-        prop.add(Item.DELETE,     username)
         prop.add(Item.DISCOVER,   username)
         prop.add(Item.READ,       username)
         prop.add(Item.WORKSPACE,  username)
         prop.add(Run.DELETE,      username)
         prop.add(Run.UPDATE,      username)
         prop.add(Run.ARTIFACTS,   username)
+        prop.add(com.cloudbees.plugins.credentials.CredentialsProvider.VIEW,           username)
         prop.add(com.cloudbees.plugins.credentials.CredentialsProvider.CREATE,         username)
         prop.add(com.cloudbees.plugins.credentials.CredentialsProvider.UPDATE,         username)
         prop.add(com.cloudbees.plugins.credentials.CredentialsProvider.DELETE,         username)
@@ -293,6 +291,37 @@ project-based matrix security, giving each user full control of only their own f
     ```
 
 1. Verify the output shows `Folders and authorization configured`.
+
+#### 3.1.8 Configure the Kubernetes cloud
+
+Jenkins starts with the Kubernetes plugin installed but no Cloud configured (the values file keeps `JCasC.defaultConfig: false`). Without a Cloud, pipelines that use `agent { kubernetes { ... } }` fail with `ERROR: No Kubernetes cloud was found.` — every workshop pipeline is blocked until we add one. Configure it via the Script Console, matching the pattern used by the security and user setup above.
+
+1. Paste this Groovy into `https://<jenkins-route>/script` and click **Run**:
+
+    ```groovy
+    import jenkins.model.*
+    import org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud
+
+    def jenkins = Jenkins.getInstance()
+    jenkins.clouds.removeAll { it instanceof KubernetesCloud }
+
+    def cloud = new KubernetesCloud("kubernetes")
+    cloud.setNamespace("jenkins")
+    cloud.setJenkinsUrl("http://jenkins.jenkins.svc.cluster.local:8080")
+    cloud.setJenkinsTunnel("jenkins-agent.jenkins.svc.cluster.local:50000")
+    cloud.setContainerCapStr("10")
+
+    jenkins.clouds.add(cloud)
+    jenkins.save()
+
+    println "Kubernetes cloud configured: ${cloud.name} in ${cloud.namespace}"
+    ```
+
+    > **Note:** If your Jenkins namespace isn't `jenkins`, replace the three `jenkins` strings inside `setNamespace`, `setJenkinsUrl`, and `setJenkinsTunnel` with your namespace before pasting.
+
+1. Verify the output shows `Kubernetes cloud configured: kubernetes in jenkins`.
+
+1. [Optional] Verify via UI: **Manage Jenkins → Clouds** should list a `kubernetes` cloud pointing at your namespace.
 
 ### 3.2 Grant the Jenkins ServiceAccount the cluster permissions it needs
 
@@ -314,9 +343,96 @@ project-based matrix security, giving each user full control of only their own f
 
 ---
 
-## 4. Cluster Setup
+## 4. IBM Bob CLI Setup
 
-### 4.1 Add Workshop User Accounts
+> **Important:** The API key must **not** be baked into the image. It will be injected at runtime.
+
+### 4.1 Build and push IBM Bob image
+
+1. Build the image from the Dockerfile in this repo:
+
+    ```bash
+    cd setup/bob-cli
+    podman build -t bob-cli:latest .
+    cd -
+    ```
+
+1. Expose the OpenShift internal image registry externally so you can push from your laptop. TechZone clusters don't have this route by default:
+
+    ```bash
+    oc patch configs.imageregistry.operator.openshift.io/cluster \
+      --type merge -p '{"spec":{"defaultRoute":true}}'
+
+    # Wait for the route to appear (usually <30 seconds)
+    until oc get route default-route -n openshift-image-registry >/dev/null 2>&1; do sleep 2; done
+
+    REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
+    echo "Registry route: $REGISTRY"
+    ```
+
+1. Log into the registry. The `-u` value is a literal dummy — the OpenShift registry only validates the bearer token from `-p`, not the username. Using `$(oc whoami)` directly breaks when it resolves to `kube:admin` because the colon makes podman read the value as `user:password`:
+
+    ```bash
+    podman login -u unused -p "$(oc whoami -t)" --tls-verify=false "$REGISTRY"
+    ```
+
+1. Tag and push into the `jenkins` namespace. The route uses a self-signed cert, so `--tls-verify=false` is required on push:
+
+    ```bash
+    podman tag bob-cli:latest "$REGISTRY/jenkins/bob-cli:latest"
+    podman push --tls-verify=false "$REGISTRY/jenkins/bob-cli:latest"
+    ```
+
+1. Verify the ImageStream was created:
+
+    ```bash
+    oc get imagestream bob-cli -n jenkins
+    ```
+
+    Expected: a row with tag `latest`.
+
+### 4.2 Create the Bob API Key Kubernetes Secret
+
+The bob API key is stored as a Kubernetes Secret in the `jenkins` namespace and mounted directly into the bob sidecar container via `secretKeyRef`. Jenkins never handles this secret — it is injected by Kubernetes at pod scheduling time.
+
+This approach is preferred over a Jenkins credential because:
+
+- The secret is independent of the Jenkins PVC — it survives a Jenkins reprovision
+- It is manageable with standard `oc` commands and compatible with GitOps/Vault/External Secrets
+- Rotation requires a single `oc apply` with no Jenkins UI interaction
+
+1. Create the Kubernetes Secret. The secret name and key must match what the Bob Shell CLI reads from env (`BOBSHELL_API_KEY`); anything else and Bob silently fails to authenticate even though the key is present in the pod:
+
+    ```bash
+    oc create secret generic bob-cli-credentials \
+      --from-literal=BOBSHELL_API_KEY=<your-bob-api-key> \
+      -n jenkins
+    ```
+
+1. Grant the Jenkins ServiceAccount read access to the secret:
+
+    ```bash
+    oc create role bob-secret-reader \
+      --verb=get \
+      --resource=secrets \
+      --resource-name=bob-cli-credentials \
+      -n jenkins
+
+    oc create rolebinding bob-secret-reader \
+      --role=bob-secret-reader \
+      --serviceaccount=jenkins:jenkins \
+      -n jenkins
+    ```
+
+    > **Note:** The secret value is never visible to users. It is injected directly into the bob container by Kubernetes before the container starts. There is no credential ID for users to reference in their Jenkinsfile for this key — it simply appears as the `$BOBSHELL_API_KEY` environment variable inside the bob container.
+
+---
+
+## 5. Cluster Setup (optional)
+
+> **This section is optional.** Per-user OpenShift namespaces are only needed if your workshop includes labs where participants deploy workloads into their own sandbox namespaces. The 5-lab Bob-a-thon workshop is analysis-only (Bob runs against code in the pipeline) and doesn't require this section. Skip it unless a future lab adds a deploy step.
+
+### 5.1 Add Workshop User Accounts
 
 > **This step is optional.** Participants do not need OpenShift console access to
 > complete the workshop labs. All pipeline interactions with OpenShift use the Jenkins
@@ -337,7 +453,7 @@ project-based matrix security, giving each user full control of only their own f
     done
     ```
 
-### 4.2 Create participants group
+### 5.2 Create participants group
 
 1. Creating a group makes it easy to apply RBAC in bulk and to clean up afterwards:
 
@@ -360,7 +476,7 @@ project-based matrix security, giving each user full control of only their own f
     oc get group workshop-participants -o yaml
     ```
 
-### 4.3 Create user projects
+### 5.3 Create user projects
 
 1. Edit the `USERS` array in the `create-projects.sh` file to match your participant list, then run the script to create the user projects and set up the privileges.
 
@@ -369,68 +485,6 @@ project-based matrix security, giving each user full control of only their own f
     ```bash
     oc apply -f workshop-user-project-quota.yaml -n ${USER}-dev
     ```
-
----
-
-## 5. IBM Bob CLI Setup
-
-> **Important:** The API key must **not** be baked into the image. It will be injected at runtime.
-
-### 5.1 Build and push IBM Bob image
-
-1. Log into the OpenShift internal registry
-
-    ```bash
-    podman login \
-      -u $(oc whoami) \
-      -p $(oc whoami -t) \
-      image-registry.openshift-image-registry.svc:5000
-    ```
-
-1. Tag and push into the jenkins namespace (you may have to get the image registry route)
-
-    ```bash
-    podman tag bob-cli:latest \
-      image-registry.openshift-image-registry.svc:5000/jenkins/bob-cli:latest
-
-    podman push \
-      image-registry.openshift-image-registry.svc:5000/jenkins/bob-cli:latest
-    ```
-
-### 5.2 Create the Bob API Key Kubernetes Secret
-
-The bob API key is stored as a Kubernetes Secret in the `jenkins` namespace and mounted directly into the bob sidecar container via `secretKeyRef`. Jenkins never handles this secret — it is injected by Kubernetes at pod scheduling time.
-
-This approach is preferred over a Jenkins credential because:
-
-- The secret is independent of the Jenkins PVC — it survives a Jenkins reprovision
-- It is manageable with standard `oc` commands and compatible with GitOps/Vault/External Secrets
-- Rotation requires a single `oc apply` with no Jenkins UI interaction
-
-1. Create the Kubernetes Secret
-
-    ```bash
-    oc create secret generic bob-api-key \
-      --from-literal=api-key=<your-bob-api-key> \
-      -n jenkins
-    ```
-
-1. Grant the Jenkins ServiceAccount read access to the secret
-
-    ```bash
-    oc create role bob-secret-reader \
-      --verb=get \
-      --resource=secrets \
-      --resource-name=bob-api-key \
-      -n jenkins
-
-    oc create rolebinding bob-secret-reader \
-      --role=bob-secret-reader \
-      --serviceaccount=jenkins:jenkins \
-      -n jenkins
-    ```
-
-    > **Note:** The secret value is never visible to users. It is injected directly into the bob container by Kubernetes before the container starts. There is no credential ID for users to reference in their Jenkinsfile for this key — it simply appears as the `$BOB_API_KEY` environment variable inside the bob container.
 
 ---
 
@@ -449,7 +503,7 @@ This approach is preferred over a Jenkins credential because:
 | `oc start-build` fails: `forbidden` | Re-run RBAC step: `oc adm policy add-role-to-user edit system:serviceaccount:jenkins:jenkins -n userXX-dev` |
 | `bob` container: `ImagePullBackOff` | Verify image exists: `oc get imagestream -n jenkins`. Re-run the `podman push` command from Step 2. |
 | GitHub PAT credential not found | User likely entered the wrong ID. It must be exactly `<github-username>-github-pat`. |
-| `BOB_API_KEY` shows `****` but bob fails | The key is reaching bob correctly. Check whether the env var name matches what bob expects (`bob --help`). |
+| `BOBSHELL_API_KEY` shows `****` but bob fails | The key is reaching bob correctly. Check whether the env var name matches what bob expects (`bob --help`). |
 | BuildConfig not found | Provisioning did not complete for that user. Re-run `provision-users.sh` scoped to that user. |
 | Jenkins `OOMKilled` | Scale up memory: `oc set resources statefulset/jenkins -n jenkins --limits=memory=6Gi` |
 
@@ -485,8 +539,8 @@ Because the key is a Kubernetes Secret, rotation requires no Jenkins UI interact
 
 ```bash
 # Rotate the key — dry-run generates the updated secret YAML, apply patches it in place
-oc create secret generic bob-api-key \
-  --from-literal=api-key=<new-bob-api-key> \
+oc create secret generic bob-cli-credentials \
+  --from-literal=BOBSHELL_API_KEY=<new-bob-api-key> \
   --dry-run=client -o yaml | oc apply -f -
 ```
 
