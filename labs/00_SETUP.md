@@ -40,7 +40,7 @@ Logged into Jenkins as `userN`:
 1. From the **Jenkins homepage**, click your `userN` folder (the folder-icon item in the list). **Do not** click your username in the top-right — that goes to a different (wrong) credential store.
 2. In the folder's **left sidebar**, click **Credentials**.
 3. On the folder's Credentials page, under **Stores scoped to userN**, click **(global)**.
-4. Click **Add Credentials** (top-right of the page, or the sidebar link).
+4. Click **Add Credentials**
 5. Fill in:
    - **Kind:** `Username with password`
    - **Scope:** `Global` (see note below about what this means)
