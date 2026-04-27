@@ -94,6 +94,10 @@ Since you won't be invoking this mode from the IDE, there's **no need to restart
 
 ---
 
+## Part 3 - Add Groovy Export Mode for Jenkinsfiles??????
+
+Haven't done this yet will have to experiment
+
 ## Part 3 — Add the `PR Review` stage to your Jenkinsfile
 
 Now wire the two together. Start a new task and switch to **Code** mode. Ask Bob to add a `PR Review` stage after `Checkout` in `@Jenkinsfile`. Example prompt:
