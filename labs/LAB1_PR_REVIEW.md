@@ -94,11 +94,55 @@ Since you won't be invoking this mode from the IDE, there's **no need to restart
 
 ---
 
-## Part 3 - Add Groovy Export Mode for Jenkinsfiles??????
+## Part 3 - Create a custom mode for writing Jenkinsfile stages with Bob integration
 
-Haven't done this yet will have to experiment
+Before you start writing stages that call Bob, you need a mode that understands both Jenkins pipeline DSL and Bob integration patterns. Start a new task and switch to the built-in Mode Writer mode. Paste this prompt:
 
-## Part 3 — Add the `PR Review` stage to your Jenkinsfile
+```
+Write me a custom mode for creating Jenkins pipeline stages that integrate Bob. This mode is a specialist in Jenkins Declarative Pipeline DSL + Bob CLI integration patterns.
+
+The slug should be: jenkins-bob-integration
+
+The mode's expertise includes:
+  - Writing declarative pipeline stages that invoke Bob via the askBob helper
+  - Understanding when to use container('bob') vs other containers
+  - Structuring file-based prompts to avoid shell escaping issues (especially with diffs and logs)
+  - Selecting appropriate Bob custom modes for different pipeline tasks (PR review, test analysis, security scans, etc.)
+  - Handling Bob's output: capturing return values, formatting for Jenkins console (no ANSI colors), archiving as artifacts
+  - Making stages resilient with catchError and post blocks so Bob analysis runs even when earlier steps fail
+  - Understanding Jenkins workspace file paths (/workspace/...) and temp file patterns
+  - Writing clear console banners to make Bob's output easy to spot in build logs
+
+Output constraints for stages this mode creates:
+  - Use the askBob helper function (don't inline Bob CLI calls)
+  - Always write prompts to temp files, never inline on command line
+  - Format console output with clear banner lines (e.g., echo '════════════════')
+  - Archive Bob's analysis as build artifacts for historical reference
+  - Use catchError with buildResult: 'UNSTABLE' when you want the pipeline to continue after failures
+
+Tool groups:
+  - read
+  - edit (restricted to Jenkinsfile.* and .bob/custom_modes.yaml only)
+
+Add a rules directory for this mode with XML files covering:
+  - The askBob helper pattern and when to use it
+  - File-based prompt construction (avoiding shell escaping)
+  - Container selection guidelines
+  - Output handling patterns (banners, artifacts, console formatting)
+  - Error resilience patterns (catchError, post blocks)
+  - Common stage patterns (PR review, test analysis, security scan analysis)
+  - How to select which Bob custom mode to use for different pipeline tasks
+
+Append the new mode to the bottom of the existing @.bob/custom_modes.yaml file — do not overwrite anything.
+```
+
+Watch Bob work and provide input where it helps. This mode will be your go-to for all subsequent labs when you need to add or modify pipeline stages that call Bob.
+
+Since you'll be using this mode in the IDE, restart Bob IDE after the mode is created so it appears in your mode dropdown.
+
+## Part 4 — Add the `PR Review` stage to your Jenkinsfile
+
+Need a rewrite here:
 
 Now wire the two together. Start a new task and switch to **Code** mode. Ask Bob to add a `PR Review` stage after `Checkout` in `@Jenkinsfile`. Example prompt:
 
@@ -132,7 +176,7 @@ Bob will wire it up. Before pushing, read the diff and sanity-check:
 
 ---
 
-## Part 4 — Push and watch
+## Part 5 — Push and watch
 
 ```bash
 git add Jenkinsfile .bob/
