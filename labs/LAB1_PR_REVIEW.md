@@ -1,12 +1,28 @@
 # Lab 1 — PR / Git Diff Review with Bob
 
-## What you'll build
+## Overview of Lab 1
 
-- An **`askBob` helper function** in your Jenkinsfile — a clean way to call Bob from any stage without repeating the plumbing. You'll reuse this in every subsequent lab.
-- A custom Bob mode **`pipeline-git-diff-overview`** that reads a git diff like a senior developer glancing at a PR — summarizing what changed, risk-ranking each change, and calling out areas worth a closer look.
-- A **`PR Review` stage** in your Jenkinsfile that runs right after `Checkout`, captures the diff of the commit that triggered the build, and hands it to Bob via the helper.
+Lab 1 establishes the **foundational infrastructure** you'll use throughout all subsequent labs. The centerpiece is the **`askBob` helper function** — a reusable Groovy function that encapsulates all the mechanics of calling Bob from your Jenkins pipeline. Every lab after this one will use `askBob` to invoke Bob with different custom modes for different pipeline tasks (test analysis, security scans, deployment validation, etc.).
 
-By the end, every push will trigger a rubber-duck senior reviewer that surfaces risk before any other stage runs.
+Think of `askBob` as your pipeline's universal interface to Bob. It handles:
+- Switching to the correct container (`container('bob')`)
+- Writing prompts to temporary files (avoiding shell escaping nightmares with diffs and logs)
+- Invoking the Bob CLI with the appropriate `--chat-mode` flag
+- Returning Bob's analysis as a string for your stage to process
+
+You write it once in Lab 1, then every subsequent lab just calls `askBob(prompt, mode)` — no repeated boilerplate.
+
+### What you'll build in Lab 1
+
+1. **The `askBob` helper function** — Your pipeline's reusable interface to Bob. This function will be called in every subsequent lab to invoke Bob with different custom modes.
+
+2. **A custom Bob mode for Jenkins integration** (`jenkins-bob-integration`) — A specialist mode that understands Jenkins pipeline DSL and Bob integration patterns. You'll use this mode in your IDE throughout the workshop whenever you need to write or modify pipeline stages that call Bob.
+
+3. **A custom Bob mode for PR review** (`pipeline-git-diff-overview`) — A mode that reads git diffs like a senior developer glancing at a PR, producing risk-ranked summaries. This is the first *task-specific* mode you'll create, demonstrating the pattern you'll follow in later labs.
+
+4. **A `PR Review` stage** in your Jenkinsfile — Your first pipeline stage that uses the `askBob` helper. It captures the branch's diff against `main` and hands it to Bob for analysis.
+
+By the end, every push will trigger an automated senior reviewer that surfaces risk before any other stage runs — and you'll have the reusable infrastructure (`askBob` + `jenkins-bob-integration` mode) to build similar stages for unit test analysis, security scans, and more in later labs.
 
 ---
 
