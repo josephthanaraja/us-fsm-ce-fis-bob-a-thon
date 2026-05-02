@@ -1,5 +1,20 @@
 # Lab 2 — Unit Testing with Bob
 
+## Table of Contents
+
+- [Overview of Lab 2](#overview-of-lab-2)
+  - [What you'll build in Lab 2](#what-youll-build-in-lab-2)
+  - [What you'll reuse from Lab 1](#what-youll-reuse-from-lab-1)
+- [Before you start](#before-you-start)
+- [Part 1 — Create a custom mode for writing unit tests](#part-1--create-a-custom-mode-for-writing-unit-tests)
+- [Part 2 — Use your new mode to add a test](#part-2--use-your-new-mode-to-add-a-test)
+- [Part 3 — Create a custom mode for analyzing test failures](#part-3--create-a-custom-mode-for-analyzing-test-failures)
+- [Part 4 — Add the Unit Tests stage with Bob analysis to your Jenkinsfile](#part-4--add-the-unit-tests-stage-with-bob-analysis-to-your-jenkinsfile)
+- [Part 5 — Break a test intentionally and watch Bob analyze it](#part-5--break-a-test-intentionally-and-watch-bob-analyze-it)
+- [Stuck?](#stuck)
+
+---
+
 ## Overview of Lab 2
 
 Lab 2 builds on the **foundational infrastructure** from Lab 1 to add automated unit test analysis to your pipeline.

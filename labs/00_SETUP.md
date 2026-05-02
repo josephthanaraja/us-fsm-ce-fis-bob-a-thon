@@ -2,6 +2,18 @@
 
 Before you start Lab 1, set up **one Jenkins pipeline** that you'll reuse across all five labs. Each lab adds a new stage to `Jenkinsfile` on your branch; you push, click **Build Now**, and watch Bob do its thing.
 
+## Table of Contents
+
+- [What your instructor should have given you](#what-your-instructor-should-have-given-you)
+- [Step 1 — Add a GitHub PAT (private repo only)](#step-1--add-a-github-pat-private-repo-only)
+  - [1a. Create the PAT on GitHub](#1a-create-the-pat-on-github)
+  - [1b. Add the PAT to your folder's credential store](#1b-add-the-pat-to-your-folders-credential-store)
+- [Step 2 — Create your working branch](#step-2--create-your-working-branch)
+- [Step 3 — Create your Jenkins pipeline](#step-3--create-your-jenkins-pipeline)
+- [Step 4 — Run it once to verify](#step-4--run-it-once-to-verify)
+- [You're set — the workflow from here](#youre-set--the-workflow-from-here)
+- [Stuck?](#stuck)
+
 ---
 
 ## What your instructor should have given you

@@ -1,8 +1,24 @@
 # Lab 1 — PR / Git Diff Review with Bob
 
+## Table of Contents
+
+- [Overview of Lab 1](#overview-of-lab-1)
+  - [What you'll build in Lab 1](#what-youll-build-in-lab-1)
+- [Before you start](#before-you-start)
+- [Part 1 — Add the `askBob` helper to your Jenkinsfile](#part-1--add-the-askbob-helper-to-your-jenkinsfile)
+- [Part 2 — Create the `pipeline-git-diff-overview` custom mode](#part-2--create-the-pipeline-git-diff-overview-custom-mode)
+  - [Key characteristics of this mode](#key-characteristics-of-this-mode)
+- [Part 3 - Create a custom mode for writing Jenkinsfile stages with Bob integration](#part-3---create-a-custom-mode-for-writing-jenkinsfile-stages-with-bob-integration)
+  - [Key characteristics of this mode](#key-characteristics-of-this-mode-1)
+- [Part 4 — Add the `PR Review` stage to your Jenkinsfile](#part-4--add-the-pr-review-stage-to-your-jenkinsfile)
+- [Part 5 — Push and watch](#part-5--push-and-watch)
+- [Stuck?](#stuck)
+
+---
+
 ## Overview of Lab 1
 
-Lab 1 establishes the **foundational infrastructure** you'll use throughout all subsequent labs. 
+Lab 1 establishes the **foundational infrastructure** you'll use throughout all subsequent labs.
 
 ### What you'll build in Lab 1
 
@@ -62,9 +78,8 @@ A few things to notice while you paste it in:
 - **It runs inside `container('bob')`.** The pipeline pod has three containers (`build-tools`, `oc-tools`, `bob`). Bob only lives in the last one, so every `bob` command has to be wrapped in `container('bob')`.
 - **`mode` is optional** (`String mode = null`). Call `askBob("quick question")` to use Bob's default mode, or `askBob("do the thing", "some-custom-mode")` to pin a specific mode. For every lab in this workshop you'll pass a mode — that's the whole point of custom modes — but keeping the parameter optional means the helper is also usable for one-off asks.
 - **The prompt goes through a file, not the command line.** This is the pattern you'll use to hand Bob larger inputs (diffs, scan outputs, logs) later in the workshop. Keeps shell quoting clean no matter what's in the prompt.
-- **The helper is deliberately minimal.** It doesn't print banners, write archives, or decide what to do with the result — each stage handles that for itself. Keeps the helper composable for later labs that might do different things with Bob's output (fail the build on a keyword, post a PR comment, push to Jira, etc.).
 
-No push yet — nothing calls the helper. On to the mode.
+No `git push` yet — nothing calls the helper. On to the mode.
 
 ---
 
@@ -79,9 +94,14 @@ The `askBob` helper is mode-agnostic. The *behavior* — what Bob actually does 
 - **Output format**: Plain text optimized for Jenkins console (no ANSI colors or complex markdown)
 - **Structure**: Organized sections (Summary, Risk, Watch for) for easy scanning
 - **Scope**: Focuses on notable changes only — security, concurrency, null-safety, behavior changes, missing tests
-- **No IDE restart needed**: Pipeline modes are loaded fresh from the workspace on each run
 
-Start a new task and switch to the built-in **Mode Writer** mode. Paste this as a starting prompt, or write your own:
+Start a new task and switch to **Plan** mode. Tell Bob you want to create a prompt for the `mode writer mode` in the .bob directory. Tell Bob you want the new mode to has the information above in your own words. There is an example prompt at the bottom of this step for reference. 
+
+Once you have created a prompt you like with Plan mode, copy it, start a new task, switch to **Mode Writer** mode and paste. Press enter and watch Bob create the mode. Bob may ask you some questions for clarification.
+
+Since you won't be invoking this mode from the IDE, there's **no need to restart Bob IDE**. When the pipeline runs, Bob reads `.bob/custom_modes.yaml` fresh from the checked-out workspace, so the new mode is available as soon as the branch is pushed.
+
+Notice that this mode has only `read` permission — deliberately narrower than an IDE mode. A pipeline mode should do the minimum it needs to.
 
 ```
 Write me a custom mode called pipeline-git-diff-overview. The slug should be exactly: pipeline-git-diff-overview.
@@ -103,11 +123,6 @@ Add a rules directory for this mode with XML files describing how to structure t
 Append the new mode to the bottom of the existing @.bob/custom_modes.yaml file — do not overwrite anything.
 ```
 
-Watch Bob work and provide input where it helps.
-
-Notice that this mode has only `read` permission — deliberately narrower than an IDE mode. A pipeline mode should do the minimum it needs to.
-
-Since you won't be invoking this mode from the IDE, there's **no need to restart Bob IDE**. When the pipeline runs, Bob reads `.bob/custom_modes.yaml` fresh from the checked-out workspace, so the new mode is available as soon as the branch is pushed.
 
 ---
 
@@ -115,7 +130,9 @@ Since you won't be invoking this mode from the IDE, there's **no need to restart
 
 Before you start writing stages that call Bob, let's create a mode that understands both Jenkins pipeline DSL and Bob integration patterns. This mode will be your go-to tool for all subsequent labs when you need to add or modify pipeline stages.
 
-### Key characteristics of this mode:
+Now that you have an example prompt from Part 2, work with Bob in Plan mode to create a prompt to use in Mode Writer mode. 
+
+Some ideas to tell Plan mode: 
 
 - **Purpose**: Specialist in Jenkins Declarative Pipeline DSL + Bob CLI integration patterns
 - **Permissions**: Read + Edit (restricted to `Jenkinsfile.*` and `.bob/custom_modes.yaml` only)
