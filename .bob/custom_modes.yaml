@@ -79,7 +79,7 @@ customModes:
         - fileRegex: (Jenkinsfile.*|\.bob/custom_modes\.yaml)$
           description: Jenkinsfile and Bob custom modes configuration only
 
-  - slug: pipeline-git-diff-overview
+  - slug: solution-pipeline-git-diff-overview
     name: 📊 Git Diff Overview
     description: Quick risk-oriented overview of git diffs for Jenkins console output
     roleDefinition: |

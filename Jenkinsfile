@@ -84,44 +84,6 @@ spec:
             }
         }
 
-        stage('PR Review') {
-            options {
-                timeout(time: 5, unit: 'MINUTES')
-            }
-            steps {
-                script {
-                    echo '════════════════════════════════════════════════════════'
-                    echo '  Bob — PR Review'
-                    echo '════════════════════════════════════════════════════════'
-                    
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        // Configure git safe directory and compute diff
-                        sh '''
-                            git config --global --add safe.directory "$WORKSPACE"
-                            git diff origin/main...HEAD > git-diff.txt || : > git-diff.txt
-                        '''
-                        
-                        // Ask Bob to analyze the diff
-                        def analysis = askBob(
-                            "Read git-diff.txt and produce the senior-developer PR overview.",
-                            'pipeline-git-diff-overview'
-                        )
-                        
-                        echo analysis
-                        echo '════════════════════════════════════════════════════════'
-                        
-                        // Save analysis for archiving
-                        writeFile file: 'bob-pr-review.md', text: analysis
-                    }
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'bob-pr-review.md', allowEmptyArchive: true
-                }
-            }
-        }
-
         // ── Lab 1: PR / Git Diff Review ──────────────────────────
         //    Add a stage here that runs Bob in a "senior developer"
         //    mode against the git diff. See labs/LAB1_PR_REVIEW.md.
@@ -150,21 +112,5 @@ spec:
             echo "=== Pipeline Complete ==="
             echo "Result: ${currentBuild.result ?: 'SUCCESS'}"
         }
-    }
-}
-
-def askBob(String prompt, String mode = null) {
-    container('bob') {
-        def promptFile = ".bob-prompt-${System.currentTimeMillis()}.txt"
-        writeFile file: promptFile, text: prompt
-
-        def modeFlag = mode ? "--chat-mode ${mode}" : ""
-        def analysis = sh(
-            script: """bob ${modeFlag} -p "\$(cat ${promptFile})" --hide-intermediary-output""",
-            returnStdout: true
-        ).trim()
-
-        sh "rm -f ${promptFile}"
-        return analysis
     }
 }

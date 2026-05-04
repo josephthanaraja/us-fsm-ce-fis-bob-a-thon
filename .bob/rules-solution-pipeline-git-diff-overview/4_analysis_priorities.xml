@@ -1,0 +1,253 @@
+<analysis_priorities>
+  <overview>
+    When analyzing git diffs, prioritize observations that matter most for risk assessment.
+    Focus on what could break, cause security issues, or degrade performance. Skip style
+    and formatting unless it affects functionality.
+  </overview>
+
+  <priority_order>
+    <priority level="1" category="security">
+      <description>Security-sensitive changes that could introduce vulnerabilities</description>
+      <focus_areas>
+        <area>Authentication and authorization logic</area>
+        <area>Input validation and sanitization</area>
+        <area>SQL query construction (injection risks)</area>
+        <area>Encryption and hashing operations</area>
+        <area>Access control checks</area>
+        <area>Session management</area>
+        <area>File system operations with user input</area>
+        <area>Command execution with user input</area>
+      </focus_areas>
+      <always_flag>
+        <item>Removed security checks</item>
+        <item>Weakened validation</item>
+        <item>New external API calls without validation</item>
+        <item>Hardcoded credentials or secrets</item>
+      </always_flag>
+    </priority>
+
+    <priority level="2" category="data_integrity">
+      <description>Changes that could cause data corruption or loss</description>
+      <focus_areas>
+        <area>Database schema modifications</area>
+        <area>Data migration scripts</area>
+        <area>Transaction boundary changes</area>
+        <area>Cascade delete operations</area>
+        <area>Data validation rule changes</area>
+        <area>Serialization/deserialization logic</area>
+      </focus_areas>
+      <always_flag>
+        <item>Removed data validation</item>
+        <item>Changed transaction isolation</item>
+        <item>Modified foreign key constraints</item>
+        <item>Altered data type conversions</item>
+      </always_flag>
+    </priority>
+
+    <priority level="3" category="null_safety">
+      <description>Potential null pointer exceptions</description>
+      <focus_areas>
+        <area>Removed null checks</area>
+        <area>Optional.get() without isPresent()</area>
+        <area>Dereferencing potentially null objects</area>
+        <area>Method calls on nullable return values</area>
+        <area>Array/collection access without bounds checking</area>
+      </focus_areas>
+      <patterns_to_detect>
+        <pattern>object.method() where object could be null</pattern>
+        <pattern>Removed if (x != null) checks</pattern>
+        <pattern>Changed @Nullable to @NonNull or vice versa</pattern>
+        <pattern>Chained calls without null guards</pattern>
+      </patterns_to_detect>
+    </priority>
+
+    <priority level="4" category="concurrency">
+      <description>Thread-safety and race condition risks</description>
+      <focus_areas>
+        <area>Shared mutable state</area>
+        <area>Synchronization changes</area>
+        <area>Lock acquisition order</area>
+        <area>Atomic operation changes</area>
+        <area>Thread pool configuration</area>
+        <area>Concurrent collection usage</area>
+      </focus_areas>
+      <patterns_to_detect>
+        <pattern>Removed synchronized blocks</pattern>
+        <pattern>Changed from synchronized to unsynchronized collections</pattern>
+        <pattern>New shared mutable fields</pattern>
+        <pattern>Check-then-act patterns without synchronization</pattern>
+      </patterns_to_detect>
+    </priority>
+
+    <priority level="5" category="behavior_changes">
+      <description>Logic changes that alter system behavior</description>
+      <focus_areas>
+        <area>Conditional logic modifications</area>
+        <area>Loop condition changes</area>
+        <area>Return value changes</area>
+        <area>Exception handling modifications</area>
+        <area>Default value changes</area>
+        <area>Algorithm changes</area>
+      </focus_areas>
+      <always_flag>
+        <item>Changed boolean conditions</item>
+        <item>Modified loop termination</item>
+        <item>Altered error handling</item>
+        <item>Changed method signatures</item>
+      </always_flag>
+    </priority>
+
+    <priority level="6" category="performance">
+      <description>Changes affecting performance characteristics</description>
+      <focus_areas>
+        <area>Database queries in loops (N+1 problems)</area>
+        <area>Large object allocations</area>
+        <area>Removed caching</area>
+        <area>Algorithm complexity changes</area>
+        <area>Synchronous calls in async contexts</area>
+        <area>Resource pooling changes</area>
+      </focus_areas>
+      <patterns_to_detect>
+        <pattern>Query inside for/while loop</pattern>
+        <pattern>Removed @Cacheable annotations</pattern>
+        <pattern>Changed O(1) to O(n) operations</pattern>
+        <pattern>Added blocking calls in reactive code</pattern>
+      </patterns_to_detect>
+    </priority>
+
+    <priority level="7" category="test_coverage">
+      <description>Missing or inadequate test coverage</description>
+      <focus_areas>
+        <area>New methods without tests</area>
+        <area>Changed logic without updated tests</area>
+        <area>New error paths without coverage</area>
+        <area>Integration points without tests</area>
+      </focus_areas>
+      <when_to_flag>
+        <condition>New public methods with no corresponding test file changes</condition>
+        <condition>Modified business logic without test updates</condition>
+        <condition>New exception types without test coverage</condition>
+      </when_to_flag>
+    </priority>
+  </priority_order>
+
+  <what_to_skip>
+    <skip category="formatting">
+      <description>Pure formatting changes with no functional impact</description>
+      <examples>
+        <example>Whitespace changes</example>
+        <example>Line breaks</example>
+        <example>Indentation adjustments</example>
+        <example>Import reordering</example>
+      </examples>
+      <exception>Unless formatting change reveals hidden logic issue</exception>
+    </skip>
+
+    <skip category="comments">
+      <description>Comment-only changes</description>
+      <examples>
+        <example>Added documentation</example>
+        <example>Updated comments</example>
+        <example>Removed outdated comments</example>
+      </examples>
+      <exception>If comment removal hides important context</exception>
+    </skip>
+
+    <skip category="trivial_refactoring">
+      <description>Simple renames or extractions with no logic change</description>
+      <examples>
+        <example>Variable renames</example>
+        <example>Method extractions (same logic)</example>
+        <example>Constant extractions</example>
+      </examples>
+      <exception>If refactoring changes behavior or introduces bugs</exception>
+    </skip>
+
+    <skip category="logging">
+      <description>Pure logging additions (not level changes)</description>
+      <examples>
+        <example>Added debug logging</example>
+        <example>Improved log messages</example>
+      </examples>
+      <exception>If logging level changed (e.g., ERROR to DEBUG)</exception>
+    </skip>
+  </what_to_skip>
+
+  <analysis_workflow>
+    <step number="1">
+      <action>Scan for priority 1 (security) issues first</action>
+      <approach>If found, flag immediately as HIGH risk</approach>
+    </step>
+
+    <step number="2">
+      <action>Check for priority 2 (data integrity) issues</action>
+      <approach>Flag as HIGH or MEDIUM depending on scope</approach>
+    </step>
+
+    <step number="3">
+      <action>Look for priority 3-4 (null-safety, concurrency) issues</action>
+      <approach>Usually MEDIUM to HIGH risk</approach>
+    </step>
+
+    <step number="4">
+      <action>Assess priority 5-6 (behavior, performance) changes</action>
+      <approach>Usually MEDIUM risk, LOW if well-tested</approach>
+    </step>
+
+    <step number="5">
+      <action>Note priority 7 (test coverage) gaps</action>
+      <approach>Mention in watch-for section</approach>
+    </step>
+
+    <step number="6">
+      <action>Skip items in what_to_skip categories</action>
+      <approach>Unless they fall under exceptions</approach>
+    </step>
+  </analysis_workflow>
+
+  <context_considerations>
+    <consideration name="file_type">
+      <description>Risk varies by file type</description>
+      <high_risk_files>
+        <file>*Service.java - Business logic</file>
+        <file>*Repository.java - Data access</file>
+        <file>*Controller.java - API endpoints</file>
+        <file>*Security*.java - Security components</file>
+        <file>application*.properties - Configuration</file>
+      </high_risk_files>
+      <low_risk_files>
+        <file>*Test.java - Test files</file>
+        <file>README.md - Documentation</file>
+        <file>*.txt - Text files</file>
+      </low_risk_files>
+    </consideration>
+
+    <consideration name="change_size">
+      <description>Large changes need more scrutiny</description>
+      <small_change>1-20 lines: Quick review possible</small_change>
+      <medium_change>21-100 lines: Careful review needed</medium_change>
+      <large_change>100+ lines: High-level summary, flag for detailed review</large_change>
+    </consideration>
+
+    <consideration name="change_location">
+      <description>Some code paths are more critical</description>
+      <critical_paths>
+        <path>Payment processing</path>
+        <path>Authentication flows</path>
+        <path>Data persistence</path>
+        <path>External API integrations</path>
+      </critical_paths>
+    </consideration>
+  </context_considerations>
+
+  <efficiency_tips>
+    <tip>Scan diff headers first to identify changed files and scope</tip>
+    <tip>Focus on added/modified lines, not just removed lines</tip>
+    <tip>Look for patterns across multiple files (systematic issues)</tip>
+    <tip>Group similar low-risk changes to keep output concise</tip>
+    <tip>If 10+ files changed, summarize low-risk changes in groups</tip>
+    <tip>Always mention if tests were added/updated for new code</tip>
+  </efficiency_tips>
+</analysis_priorities>
+
+<!-- Made with Bob -->
