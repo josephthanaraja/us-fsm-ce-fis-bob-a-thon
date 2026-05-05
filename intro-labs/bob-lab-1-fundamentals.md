@@ -5,6 +5,8 @@
 **Prerequisites:**
 - Bob application installed and running
 
+> 📌 Here is where you can find Bob documentation if you ever get stuck or want to explore: https://bob.ibm.com/docs/ide
+
 ---
 
 ## Table of Contents
@@ -73,6 +75,8 @@ Review and edit files directly:
 - See Bob's proposed changes before approval
 - Compare original and modified versions
 - Edit files manually when needed
+
+> 📌 See more information about all the chat features here: https://bob.ibm.com/docs/ide/features/chat-interface
 
 ### First Interaction
 
@@ -146,6 +150,9 @@ What is the difference between HTML, CSS, and JavaScript?
 
 You can start to see how different modes can help with specific types of requests and how easy it is to switch between modes.
 
+
+> 📌 See more infromation about modes here: https://bob.ibm.com/docs/ide/features/modes 
+
 ---
 
 ## Approvals and Safe Collaboration
@@ -181,6 +188,8 @@ To enable auto-approvals:
 3. Bob will now create multiple files rapidly
 
 **⚠️ Important**: Review the files after Bob creates them to ensure they match your requirements.
+
+> 📌 See more infromation about approvals here: https://bob.ibm.com/docs/ide/features/auto-approving-actions 
 
 ---
 
@@ -338,7 +347,7 @@ Explain this file line by line in plain English.
 
 ## Additional Resources
 
-- [Bob Documentation](https://bob-docs-url)
+- [Bob Documentation](https://bob.ibm.com/docs/ide)
 
 ---
 
