@@ -1,0 +1,288 @@
+<askbob_helper_pattern>
+  <overview>
+    The askBob helper function is the standard way to invoke Bob CLI from Jenkins pipeline stages.
+    It encapsulates best practices for calling Bob, handling output, and managing errors.
+  </overview>
+
+  <helper_signature>
+    <description>
+      The askBob helper is defined in the Jenkinsfile and provides a consistent interface
+      for all Bob invocations across pipeline stages.
+    </description>
+    <function_definition><![CDATA[
+def askBob(String prompt, String mode = null) {
+    container('bob') {
+        def promptFile = ".bob-prompt-${System.currentTimeMillis()}.txt"
+        writeFile file: promptFile, text: prompt
+
+        def modeFlag = mode ? "--chat-mode ${mode}" : ""
+        def analysis = sh(
+            script: """bob ${modeFlag} -p "\$(cat ${promptFile})" --hide-intermediary-output""",
+            returnStdout: true
+        ).trim()
+
+        sh "rm -f ${promptFile}"
+        return analysis
+    }
+}
+    ]]></function_definition>
+  </helper_signature>
+
+  <when_to_use>
+    <rule priority="high">
+      ALWAYS use the askBob helper instead of directly calling bob CLI
+    </rule>
+    <rationale>
+      - Ensures consistent container usage (container('bob'))
+      - Standardizes error handling across all stages
+      - Makes pipeline code more readable and maintainable
+      - Centralizes Bob CLI invocation logic for easier updates
+    </rationale>
+  </when_to_use>
+
+  <parameters>
+    <parameter name="prompt" required="true">
+      <description>The prompt text to send to Bob (can be multi-line)</description>
+      <best_practices>
+        <practice>Use triple-quoted strings for multi-line prompts</practice>
+        <practice>Include context like diffs, logs, or file contents</practice>
+        <practice>Be specific about what analysis you want</practice>
+      </best_practices>
+      <examples>
+        <example>"""Review this code for security issues:\n${diffContent}"""</example>
+        <example>"""Analyze these test failures:\n${testLog}"""</example>
+      </examples>
+    </parameter>
+
+    <parameter name="mode" required="false">
+      <description>Optional Bob chat mode slug to use (defaults to general mode if not specified)</description>
+      <examples>
+        <example>solution-code-reviewer</example>
+        <example>solution-test-failure-analyzer</example>
+        <example>pipeline-git-diff-overview</example>
+      </examples>
+      <selection_guide>
+        See 7_mode_selection_guide.xml for choosing the right mode
+      </selection_guide>
+      <note>
+        The helper uses --chat-mode flag, not --custom-mode
+      </note>
+    </parameter>
+
+    <return_value>
+      <description>Returns Bob's analysis as a String</description>
+      <usage>
+        Capture the return value to process, display, or archive the analysis
+      </usage>
+      <example>def analysis = askBob(prompt, 'solution-code-reviewer')</example>
+    </return_value>
+  </parameters>
+
+  <usage_patterns>
+    <pattern name="basic_invocation">
+      <description>Simple Bob invocation with console output</description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            def prompt = "Review the changes in this PR for code quality and security."
+            
+            // Invoke Bob and capture output
+            def analysis = askBob(prompt, 'solution-code-reviewer')
+            
+            // Display in console
+            echo analysis
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="with_diff_content">
+      <description>Include git diff in prompt</description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            // Get diff content
+            def diffContent = sh(
+                script: 'git diff origin/main...HEAD',
+                returnStdout: true
+            ).trim()
+            
+            // Build prompt with diff
+            def prompt = """
+Review the following code changes for:
+- Code quality and maintainability
+- Security vulnerabilities
+- Performance issues
+
+Changes:
+${diffContent}
+"""
+            
+            // Invoke Bob
+            def analysis = askBob(prompt, 'solution-code-reviewer')
+            echo analysis
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="with_output_archiving">
+      <description>Capture and archive Bob's output</description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            def prompt = "Review the changes in this PR."
+            
+            // Get Bob's analysis
+            def analysis = askBob(prompt, 'solution-code-reviewer')
+            
+            // Save to file for archiving
+            writeFile file: 'bob-pr-review.txt', text: analysis
+            
+            // Display in console
+            echo analysis
+            
+            // Archive the analysis
+            archiveArtifacts artifacts: 'bob-pr-review.txt',
+                           allowEmptyArchive: true
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="with_error_handling">
+      <description>Resilient invocation that continues pipeline on Bob errors</description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                def prompt = "Review the changes in this PR."
+                
+                def analysis = askBob(prompt, 'solution-code-reviewer')
+                
+                // Save and archive
+                writeFile file: 'bob-pr-review.txt', text: analysis
+                echo analysis
+                archiveArtifacts artifacts: 'bob-pr-review.txt',
+                               allowEmptyArchive: true
+            }
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="with_console_banners">
+      <description>Add clear visual markers in console output</description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            echo '════════════════════════════════════════════════════════'
+            echo '  Bob PR Review Analysis'
+            echo '════════════════════════════════════════════════════════'
+            
+            def prompt = "Review the changes in this PR."
+            def analysis = askBob(prompt, 'solution-code-reviewer')
+            
+            echo analysis
+            
+            echo '════════════════════════════════════════════════════════'
+            echo '  Bob PR Review Complete'
+            echo '════════════════════════════════════════════════════════'
+            
+            // Archive
+            writeFile file: 'bob-pr-review.txt', text: analysis
+            archiveArtifacts artifacts: 'bob-pr-review.txt',
+                           allowEmptyArchive: true
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+  </usage_patterns>
+
+  <anti_patterns>
+    <anti_pattern name="inline_bob_call">
+      <description>DON'T call bob CLI directly without the helper</description>
+      <bad><![CDATA[
+// BAD: Direct bob CLI call
+container('bob') {
+    sh "bob --chat-mode solution-code-reviewer -p 'Review this'"
+}
+      ]]></bad>
+      <good><![CDATA[
+// GOOD: Use the helper
+def analysis = askBob("Review this", 'solution-code-reviewer')
+      ]]></good>
+    </anti_pattern>
+
+    <anti_pattern name="not_capturing_output">
+      <description>DON'T ignore the return value</description>
+      <bad><![CDATA[
+// BAD: Not capturing Bob's analysis
+askBob(prompt, 'solution-code-reviewer')
+// Analysis is lost!
+      ]]></bad>
+      <good><![CDATA[
+// GOOD: Capture and use the analysis
+def analysis = askBob(prompt, 'solution-code-reviewer')
+echo analysis
+writeFile file: 'bob-analysis.txt', text: analysis
+      ]]></good>
+      <rationale>
+        The helper returns Bob's analysis as a string - capture it to
+        display, process, or archive
+      </rationale>
+    </anti_pattern>
+
+    <anti_pattern name="missing_container">
+      <description>DON'T call bob CLI directly outside container('bob')</description>
+      <bad><![CDATA[
+// BAD: bob isn't in the default (build-tools) container
+sh "bob --chat-mode solution-code-reviewer -p 'review this'"
+      ]]></bad>
+      <good><![CDATA[
+// GOOD: askBob enters container('bob') for you
+def analysis = askBob("review this", 'solution-code-reviewer')
+      ]]></good>
+    </anti_pattern>
+  </anti_patterns>
+
+  <troubleshooting>
+    <issue name="bob_not_found">
+      <symptom>Error: bob: command not found</symptom>
+      <cause>Not running in container('bob')</cause>
+      <solution>Always use askBob helper which ensures container('bob')</solution>
+    </issue>
+
+    <issue name="analysis_not_displayed">
+      <symptom>Bob runs but output not visible in console</symptom>
+      <cause>Not capturing or echoing the return value</cause>
+      <solution>
+        - Capture return value: def analysis = askBob(...)
+        - Echo it: echo analysis
+        - Or save to file: writeFile file: 'output.txt', text: analysis
+      </solution>
+    </issue>
+
+    <issue name="special_chars_in_prompt">
+      <symptom>Prompt gets corrupted or Bob fails</symptom>
+      <cause>Special characters in prompt string</cause>
+      <solution>
+        - Use triple-quoted strings for multi-line prompts
+        - The helper handles temp file creation automatically
+        - No need to manually escape special characters
+      </solution>
+    </issue>
+  </troubleshooting>
+</askbob_helper_pattern>
+
+<!-- Made with Bob -->

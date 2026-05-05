@@ -1,0 +1,184 @@
+<output_handling>
+  <overview>
+    askBob returns Bob's analysis as a String. The stage's job is to make that string
+    visible in the Jenkins console and preserved as a build artifact. This guide covers
+    the standard patterns for capturing, displaying, and archiving that output.
+  </overview>
+
+  <core_pattern>
+    <description>
+      The single canonical pattern: capture the return, echo it between banners, write
+      it to a markdown file, and archive that file as an artifact.
+    </description>
+    <example><![CDATA[
+def analysis = askBob(prompt, 'mode-slug')
+
+echo '════════════════════════════════════════════════════════'
+echo '  Bob — <stage name>'
+echo '════════════════════════════════════════════════════════'
+echo analysis
+echo '════════════════════════════════════════════════════════'
+
+writeFile file: 'bob-<stage>.md', text: analysis
+archiveArtifacts artifacts: 'bob-<stage>.md', allowEmptyArchive: true
+    ]]></example>
+  </core_pattern>
+
+  <output_capture>
+    <rule priority="critical">
+      <title>Always capture askBob's return value</title>
+      <description>
+        askBob returns a String. If you ignore the return, the analysis is lost —
+        nothing else displays it.
+      </description>
+      <good><![CDATA[
+def analysis = askBob(prompt, 'mode-slug')
+echo analysis
+      ]]></good>
+      <bad><![CDATA[
+// Analysis is computed and thrown away
+askBob(prompt, 'mode-slug')
+      ]]></bad>
+    </rule>
+
+    <rule priority="high">
+      <title>Don't pipe-redirect askBob's output</title>
+      <description>
+        askBob is a Groovy method, not a shell command. You can't redirect its output
+        with > or 2>. Use the return value.
+      </description>
+      <bad><![CDATA[
+// Doesn't do what you think
+sh "askBob > bob-output.txt"
+
+// askBob() is Groovy — there's no third "outputFile" parameter either
+askBob(prompt, 'mode-slug', 'bob-output.txt')  // ignored
+      ]]></bad>
+      <good><![CDATA[
+def analysis = askBob(prompt, 'mode-slug')
+writeFile file: 'bob-output.md', text: analysis
+      ]]></good>
+    </rule>
+  </output_capture>
+
+  <console_display>
+    <rule priority="high">
+      <title>Wrap Bob output in banner lines</title>
+      <description>
+        Jenkins build logs are noisy. Banner lines around Bob's output let a developer
+        find it instantly when scanning the log.
+      </description>
+      <example><![CDATA[
+echo '════════════════════════════════════════════════════════'
+echo '  Bob — PR Review'
+echo '════════════════════════════════════════════════════════'
+echo analysis
+echo '════════════════════════════════════════════════════════'
+      ]]></example>
+    </rule>
+
+    <rule priority="medium">
+      <title>Keep the banner content stable</title>
+      <description>
+        Use the same banner format across stages (a row of ═ or ─, the stage name,
+        another row). Consistency makes scanning the log faster than novelty.
+      </description>
+    </rule>
+  </console_display>
+
+  <archiving>
+    <pattern name="single_artifact">
+      <description>Archive one file per Bob stage</description>
+      <example><![CDATA[
+writeFile file: 'bob-pr-review.md', text: analysis
+archiveArtifacts artifacts: 'bob-pr-review.md', allowEmptyArchive: true
+      ]]></example>
+    </pattern>
+
+    <pattern name="multiple_artifacts">
+      <description>If a stage produces multiple Bob outputs, archive them with a glob</description>
+      <example><![CDATA[
+writeFile file: 'bob-pr-review.md', text: review
+writeFile file: 'bob-pr-security.md', text: security
+archiveArtifacts artifacts: 'bob-*.md', allowEmptyArchive: true
+      ]]></example>
+    </pattern>
+
+    <best_practice>
+      <title>Use allowEmptyArchive: true</title>
+      <description>
+        With allowEmptyArchive, a missing file doesn't fail the stage. Pairs with
+        catchError-style resilience (see 5_error_resilience.xml).
+      </description>
+    </best_practice>
+
+    <best_practice>
+      <title>Pick filenames that match the stage</title>
+      <description>
+        bob-pr-review.md, bob-test-analysis.md, bob-security-report.md, etc. The
+        filename is what shows up in the Build Artifacts list — make it self-describing.
+      </description>
+    </best_practice>
+  </archiving>
+
+  <output_processing>
+    <description>
+      Sometimes you want to react to what Bob said — for example, mark the build
+      UNSTABLE if the output mentions a high-risk change. Keep this simple; Bob's
+      free text isn't a structured contract.
+    </description>
+    <example><![CDATA[
+def analysis = askBob(prompt, 'pipeline-git-diff-overview')
+echo analysis
+
+if (analysis.toLowerCase().contains('risk: high')) {
+    echo "Bob flagged a high-risk change — marking build UNSTABLE"
+    currentBuild.result = 'UNSTABLE'
+}
+
+writeFile file: 'bob-pr-review.md', text: analysis
+archiveArtifacts artifacts: 'bob-pr-review.md', allowEmptyArchive: true
+    ]]></example>
+    <caveat>
+      If you find yourself writing a lot of regex against Bob's output, that's a
+      signal: have the mode produce structured (JSON / YAML) output and parse that
+      instead. Don't ad-hoc regex over markdown.
+    </caveat>
+  </output_processing>
+
+  <troubleshooting>
+    <issue name="output_not_in_console">
+      <symptom>Stage runs successfully but no Bob output in the build log.</symptom>
+      <cause>The return value wasn't captured or wasn't echoed.</cause>
+      <fix>def analysis = askBob(...); echo analysis</fix>
+    </issue>
+
+    <issue name="artifact_missing">
+      <symptom>Build Artifacts list doesn't include the Bob output file.</symptom>
+      <causes>
+        <cause>writeFile path and archiveArtifacts pattern don't match</cause>
+        <cause>writeFile failed silently (rare)</cause>
+        <cause>Stage failed before reaching archiveArtifacts (move it to a post block)</cause>
+      </causes>
+      <fix>
+        Verify the same filename in writeFile and archiveArtifacts; consider moving
+        archiveArtifacts to post { always { ... } } so it runs even when the main
+        steps fail.
+      </fix>
+    </issue>
+
+    <issue name="extra_chatter_in_output">
+      <symptom>Output includes Bob's tool-trace or thinking output, not just the analysis.</symptom>
+      <cause>askBob calls bob with --hide-intermediary-output. If you've modified
+      the helper or are calling bob directly, the flag may be missing.</cause>
+      <fix>Restore the askBob helper as defined in the Jenkinsfile; don't bypass it.</fix>
+    </issue>
+  </troubleshooting>
+
+  <quick_reference>
+    <command>def analysis = askBob(prompt, 'mode-slug')</command>
+    <command>echo analysis</command>
+    <command>writeFile file: 'bob-output.md', text: analysis</command>
+    <command>archiveArtifacts artifacts: 'bob-output.md', allowEmptyArchive: true</command>
+  </quick_reference>
+</output_handling>

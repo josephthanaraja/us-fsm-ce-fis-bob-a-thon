@@ -1,0 +1,240 @@
+<error_resilience>
+  <overview>
+    Bob analysis is most useful when *something is wrong* — failing tests, broken
+    builds, problematic diffs. So the stages that call Bob have to be resilient to
+    earlier-stage failures and to Bob's own occasional flakes. This guide covers the
+    standard patterns: catchError around Bob calls, post blocks for cleanup and
+    archiving, and resilient input gathering.
+  </overview>
+
+  <core_principle>
+    <title>Bob analysis should not block the pipeline</title>
+    <description>
+      A failure in Bob (network blip, mode misconfiguration, prompt too large) should
+      mark the build UNSTABLE, not abort it. The earlier stages — Maven build, tests —
+      are what determine pipeline correctness. Bob is commentary on top.
+    </description>
+  </core_principle>
+
+  <patterns>
+    <pattern name="catcherror_unstable" priority="critical">
+      <description>
+        Wrap askBob in catchError. If Bob fails, the stage is marked FAILURE but the
+        overall build becomes UNSTABLE and the pipeline continues to the next stage.
+      </description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                sh '''
+                    git config --global --add safe.directory "$WORKSPACE"
+                    git diff origin/main...HEAD > git-diff.txt || : > git-diff.txt
+                '''
+
+                def analysis = askBob(
+                    "Read git-diff.txt and tell me what changed in this PR.",
+                    'pipeline-git-diff-overview'
+                )
+
+                echo analysis
+                writeFile file: 'bob-pr-review.md', text: analysis
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-pr-review.md', allowEmptyArchive: true
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="post_always_archives" priority="high">
+      <description>
+        Move archiveArtifacts into post { always { ... } } so artifacts get archived
+        even when the main steps throw (e.g., Bob threw, the writeFile happened, but
+        the stage failed before archiveArtifacts ran).
+      </description>
+      <example><![CDATA[
+stage('Bob Test Analysis') {
+    steps {
+        script {
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                def reports = sh(
+                    script: "find order-service/target/surefire-reports -name '*.txt' -exec cat {} +",
+                    returnStdout: true
+                ).trim()
+
+                def analysis = askBob(
+                    "Analyze these test failures:\n${reports}",
+                    'pipeline-test-failure-analyzer'
+                )
+
+                echo analysis
+                writeFile file: 'bob-test-analysis.md', text: analysis
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-test-analysis.md', allowEmptyArchive: true
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="resilient_input_gathering" priority="high">
+      <description>
+        Earlier stages may have failed. Make Bob's inputs (diffs, logs, scan reports)
+        fall back to empty rather than throwing. Bob can analyze "nothing changed"
+        gracefully; it can't analyze a NoSuchFileException.
+      </description>
+      <example><![CDATA[
+// git-diff falls back to empty file on diff failure (e.g., on a build of main)
+sh '''
+    git config --global --add safe.directory "$WORKSPACE"
+    git diff origin/main...HEAD > git-diff.txt || : > git-diff.txt
+'''
+
+// Test reports may not exist if the test stage was skipped
+def reports = ''
+if (fileExists('order-service/target/surefire-reports')) {
+    reports = sh(
+        script: "find order-service/target/surefire-reports -name '*.txt' -exec cat {} + || true",
+        returnStdout: true
+    ).trim()
+}
+
+def analysis = askBob(
+    "Analyze these test failures (may be empty if tests didn't run):\n${reports}",
+    'pipeline-test-failure-analyzer'
+)
+      ]]></example>
+    </pattern>
+
+    <pattern name="run_after_failure" priority="medium">
+      <description>
+        For stages whose whole purpose is to analyze a failure (test failure
+        analysis, build failure diagnosis), use catchError on the *upstream* stage
+        — let it record the failure and mark the build UNSTABLE — and then let the
+        Bob analysis stage run normally on the next iteration.
+      </description>
+      <example><![CDATA[
+stage('Unit Tests') {
+    steps {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+            sh "mvn -f order-service/pom.xml test"
+        }
+    }
+}
+
+// Always runs — analyzes whatever surefire wrote, success or failure
+stage('Bob Test Analysis') {
+    steps {
+        script {
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                // ... read surefire reports, askBob ...
+            }
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="timeout" priority="medium">
+      <description>
+        Cap Bob calls so a stuck request doesn't hold the entire pipeline. 5 minutes
+        is enough for nearly any analysis; if you find Bob taking longer, the prompt
+        is probably too big.
+      </description>
+      <example><![CDATA[
+stage('PR Review') {
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    steps {
+        // ...
+    }
+}
+      ]]></example>
+    </pattern>
+  </patterns>
+
+  <best_practices>
+    <practice priority="critical">
+      <title>Always wrap askBob in catchError (with buildResult: 'UNSTABLE')</title>
+      <rationale>
+        Without it, a Bob failure aborts the build. With it, the build goes UNSTABLE
+        and downstream stages still run.
+      </rationale>
+    </practice>
+
+    <practice priority="high">
+      <title>Archive in post { always { ... } }, not in steps</title>
+      <rationale>
+        archiveArtifacts in post always runs, even on stage failure. If you put it
+        in steps and the stage throws first, you lose the artifact.
+      </rationale>
+    </practice>
+
+    <practice priority="high">
+      <title>Make input collection resilient with `|| true` or `|| : > file`</title>
+      <rationale>
+        A diff that fails or a missing test report shouldn't kill the analysis stage
+        — Bob can describe an empty input.
+      </rationale>
+    </practice>
+
+    <practice priority="medium">
+      <title>Set a timeout</title>
+      <rationale>
+        5 minutes is plenty. A stuck askBob call without a timeout will eventually
+        hit the pipeline-level timeout, but that's a worse failure mode.
+      </rationale>
+    </practice>
+  </best_practices>
+
+  <troubleshooting>
+    <issue name="pipeline_aborted_on_bob_failure">
+      <symptom>Pipeline goes red and stops at the Bob stage.</symptom>
+      <cause>askBob threw and there's no catchError around it.</cause>
+      <fix>Wrap askBob in catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE').</fix>
+    </issue>
+
+    <issue name="artifact_missing_on_failure">
+      <symptom>Build is UNSTABLE; the Bob output file is in the workspace but not
+      in Build Artifacts.</symptom>
+      <cause>archiveArtifacts is in steps and never ran because the stage failed first.</cause>
+      <fix>Move archiveArtifacts into post { always { ... } }.</fix>
+    </issue>
+
+    <issue name="diff_stage_fails_on_main_branch_build">
+      <symptom>git diff origin/main...HEAD fails or returns empty when building main itself.</symptom>
+      <cause>There's nothing to diff against.</cause>
+      <fix>
+        Use `|| : > git-diff.txt` to fall back to an empty file. Bob will respond
+        with "nothing notable changed" — which is correct.
+      </fix>
+    </issue>
+
+    <issue name="prompt_too_large">
+      <symptom>askBob times out or returns a generic apology.</symptom>
+      <cause>The diff or log you handed Bob is huge.</cause>
+      <fix>
+        Trim the input — last N lines of a log, only changed files in a diff,
+        summarize before sending. See 2_file_based_prompts.xml for techniques.
+      </fix>
+    </issue>
+  </troubleshooting>
+
+  <quick_reference>
+    <command>catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') { ... }</command>
+    <command>options { timeout(time: 5, unit: 'MINUTES') }</command>
+    <command>post { always { archiveArtifacts artifacts: 'bob-*.md', allowEmptyArchive: true } }</command>
+    <command>sh "command || true"  // shell fallback</command>
+    <command>if (fileExists('path')) { ... }  // input fallback</command>
+  </quick_reference>
+</error_resilience>

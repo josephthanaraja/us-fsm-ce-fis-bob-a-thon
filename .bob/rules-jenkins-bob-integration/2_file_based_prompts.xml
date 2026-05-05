@@ -1,0 +1,323 @@
+<file_based_prompts>
+  <overview>
+    The askBob helper automatically handles prompt file creation internally, so you pass prompt text
+    directly as a string parameter. The helper creates a temporary file, passes it to Bob, and cleans
+    it up automatically. This approach avoids shell escaping issues and handles complex content like
+    diffs, logs, and multi-line text.
+  </overview>
+
+  <why_file_based>
+    <reason priority="critical">
+      <title>Shell Escaping Nightmares</title>
+      <description>
+        Inline prompts on command line require escaping quotes, backticks, dollar signs,
+        newlines, and other special characters. This becomes impossible with complex content.
+      </description>
+      <example_problem><![CDATA[
+// This will FAIL with shell escaping issues:
+sh "bob --prompt 'Review this diff:\n${gitDiff}'"
+      ]]></example_problem>
+    </reason>
+
+    <reason priority="high">
+      <title>Diff and Log Content</title>
+      <description>
+        Git diffs and test logs contain special characters that break shell parsing:
+        - Quotes and backticks in code
+        - Dollar signs in variable names
+        - Angle brackets in generics
+        - Newlines and indentation
+      </description>
+    </reason>
+
+    <reason priority="medium">
+      <title>Readability and Debugging</title>
+      <description>
+        File-based prompts are easier to inspect, debug, and version control.
+        You can cat the prompt file to see exactly what Bob received.
+      </description>
+    </reason>
+  </why_file_based>
+
+  <prompt_construction_patterns>
+    <pattern name="simple_text_prompt">
+      <description>Basic text prompt without dynamic content</description>
+      <example><![CDATA[
+script {
+    def prompt = """
+Review the changes in this pull request for:
+- Code quality and maintainability
+- Security vulnerabilities
+- Performance issues
+- Test coverage
+"""
+    
+    def analysis = askBob(prompt, 'solution-code-reviewer')
+    echo analysis
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="prompt_with_git_diff">
+      <description>Include git diff output in prompt</description>
+      <example><![CDATA[
+script {
+    // Capture git diff
+    def diffContent = sh(
+        script: 'git diff origin/main...HEAD',
+        returnStdout: true
+    ).trim()
+    
+    // Build prompt with diff
+    def prompt = """
+Review the following code changes for security and quality issues:
+
+${diffContent}
+
+Focus on:
+- SQL injection vulnerabilities
+- Authentication/authorization issues
+- Input validation
+- Error handling
+"""
+    
+    def analysis = askBob(prompt, 'solution-code-reviewer')
+    echo analysis
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="prompt_with_test_output">
+      <description>Include test failure logs in prompt</description>
+      <example><![CDATA[
+script {
+    // Test output already captured to file
+    def testLog = readFile("${WORKSPACE}/test-output.log")
+    
+    def prompt = """
+Analyze the following test failures and provide:
+1. Root cause of each failure
+2. Suggested fixes
+3. Whether failures are related
+
+Test Output:
+${testLog}
+"""
+    
+    def analysis = askBob(prompt, 'solution-test-failure-analyzer')
+    echo analysis
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="prompt_with_multiple_files">
+      <description>Combine content from multiple sources</description>
+      <example><![CDATA[
+script {
+    // Gather various inputs
+    def gitDiff = sh(script: 'git diff origin/main...HEAD', returnStdout: true).trim()
+    def testResults = readFile("${WORKSPACE}/test-results.xml")
+    def buildLog = readFile("${WORKSPACE}/build.log")
+    
+    def prompt = """
+Perform a comprehensive analysis of this build:
+
+=== CODE CHANGES ===
+${gitDiff}
+
+=== TEST RESULTS ===
+${testResults}
+
+=== BUILD LOG (last 100 lines) ===
+${buildLog.split('\n').takeRight(100).join('\n')}
+
+Provide:
+1. Impact assessment of code changes
+2. Test failure analysis
+3. Build issue diagnosis
+4. Recommendations for fixes
+"""
+    
+    def analysis = askBob(prompt, 'solution-build-analyzer')
+    echo analysis
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="prompt_with_context_files">
+      <description>Include relevant source files for context</description>
+      <example><![CDATA[
+script {
+    // Read source files that changed
+    def orderController = readFile("order-service/src/main/java/com/example/orders/controller/OrderController.java")
+    def orderService = readFile("order-service/src/main/java/com/example/orders/service/OrderService.java")
+    
+    def prompt = """
+Review these files for security vulnerabilities:
+
+=== OrderController.java ===
+${orderController}
+
+=== OrderService.java ===
+${orderService}
+
+Focus on:
+- Input validation
+- SQL injection risks
+- Authentication/authorization
+- Sensitive data exposure
+"""
+    
+    def analysis = askBob(prompt, 'solution-security-scanner')
+    echo analysis
+}
+      ]]></example>
+    </pattern>
+  </prompt_construction_patterns>
+
+  <best_practices>
+    <practice priority="critical">
+      <title>Use Triple-Quoted Strings for Prompts</title>
+      <description>
+        Use Groovy triple-quoted strings (""") for multi-line prompts.
+        The askBob helper handles file creation internally.
+      </description>
+      <good><![CDATA[
+def prompt = """
+This is a multi-line prompt.
+It can contain "quotes" and 'apostrophes'.
+Even ${variables} work correctly.
+"""
+def analysis = askBob(prompt, 'mode-slug')
+      ]]></good>
+      <bad><![CDATA[
+def prompt = "Line 1\nLine 2\nLine 3"  // Harder to read
+      ]]></bad>
+    </practice>
+
+    <practice priority="high">
+      <title>Capture and Use Return Value</title>
+      <description>
+        Always capture askBob's return value to display, process, or archive the analysis.
+      </description>
+      <example><![CDATA[
+def analysis = askBob(prompt, 'solution-code-reviewer')
+echo analysis  // Display in console
+writeFile file: 'bob-analysis.txt', text: analysis  // Save for archiving
+      ]]></example>
+    </practice>
+
+    <practice priority="medium">
+      <title>No Manual File Cleanup Needed</title>
+      <description>
+        The askBob helper automatically creates and cleans up temporary prompt files.
+        You don't need to manage these files yourself.
+      </description>
+      <note>
+        The helper creates files like .bob-prompt-{timestamp}.txt and removes them after use
+      </note>
+    </practice>
+
+    <practice priority="medium">
+      <title>Limit Content Size</title>
+      <description>
+        Be mindful of prompt size. For large diffs or logs, include only
+        relevant portions or summarize.
+      </description>
+      <example><![CDATA[
+// Take last 200 lines of large log
+def logTail = buildLog.split('\n').takeRight(200).join('\n')
+
+writeFile file: promptFile, text: """
+Analyze these recent build errors:
+${logTail}
+"""
+      ]]></example>
+    </practice>
+  </best_practices>
+
+  <common_pitfalls>
+    <pitfall name="not_capturing_return_value">
+      <description>Not capturing Bob's analysis</description>
+      <bad><![CDATA[
+// DON'T DO THIS - analysis is lost
+askBob(prompt, 'solution-code-reviewer')
+      ]]></bad>
+      <good><![CDATA[
+// DO THIS - capture the analysis
+def analysis = askBob(prompt, 'solution-code-reviewer')
+echo analysis
+      ]]></good>
+    </pitfall>
+
+    <pitfall name="inline_command_line_prompt">
+      <description>Trying to call bob CLI directly</description>
+      <bad><![CDATA[
+// DON'T DO THIS - bypasses the helper
+sh "bob --chat-mode solution-code-reviewer -p 'Review this'"
+      ]]></bad>
+      <good><![CDATA[
+// DO THIS - use the helper
+def analysis = askBob("Review this", 'solution-code-reviewer')
+      ]]></good>
+    </pitfall>
+
+    <pitfall name="not_reading_file_content">
+      <description>Forgetting to read file content before including in prompt</description>
+      <bad><![CDATA[
+// This includes the filename, not the content!
+def prompt = "Analyze: ${WORKSPACE}/test.log"
+      ]]></bad>
+      <good><![CDATA[
+// Read the file content first
+def testLog = readFile("${WORKSPACE}/test.log")
+def prompt = "Analyze: ${testLog}"
+      ]]></good>
+    </pitfall>
+  </common_pitfalls>
+
+  <troubleshooting>
+    <issue name="prompt_empty_or_truncated">
+      <symptom>Bob receives empty or truncated prompt</symptom>
+      <causes>
+        <cause>Variable was null or empty</cause>
+        <cause>String interpolation failed</cause>
+      </causes>
+      <solution>
+        - Add echo statements to verify prompt content
+        - Check that variables are populated before building prompt
+        - Use triple-quoted strings for multi-line content
+      </solution>
+    </issue>
+
+    <issue name="analysis_not_visible">
+      <symptom>Bob runs but output not visible</symptom>
+      <cause>Not capturing or displaying the return value</cause>
+      <solution>
+        - Capture: def analysis = askBob(...)
+        - Display: echo analysis
+        - Archive: writeFile file: 'output.txt', text: analysis
+      </solution>
+    </issue>
+
+    <issue name="prompt_too_large">
+      <symptom>Bob times out or fails with large prompts</symptom>
+      <solution>
+        - Limit diff to changed files only
+        - Take tail of logs instead of full content
+        - Summarize or filter content before including
+        - Split into multiple smaller prompts if needed
+      </solution>
+    </issue>
+  </troubleshooting>
+
+  <quick_reference>
+    <command>def prompt = """multi-line prompt text"""</command>
+    <command>def analysis = askBob(prompt, 'mode-slug')</command>
+    <command>echo analysis  // Display in console</command>
+    <command>writeFile file: 'output.txt', text: analysis  // Save for archiving</command>
+    <command>def content = readFile("file.txt")  // Read file to include in prompt</command>
+  </quick_reference>
+</file_based_prompts>
+
+<!-- Made with Bob -->

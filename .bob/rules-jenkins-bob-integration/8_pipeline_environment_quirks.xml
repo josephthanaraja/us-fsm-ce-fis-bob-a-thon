@@ -1,0 +1,141 @@
+<pipeline_environment_quirks>
+  <overview>
+    A handful of facts about how this Jenkins + Bob pipeline is wired aren't
+    inferable from the repo. Stages will silently break if they're written without
+    these in mind. This rules file is the source of truth for those facts; they
+    apply to *every* stage that touches git, the workspace, or files Bob reads.
+  </overview>
+
+  <quirk priority="critical" name="git_safe_directory">
+    <title>safe.directory must be configured before any git command</title>
+    <description>
+      The build-tools (maven) container runs as a UID different from the one that
+      owns the files Jenkins's checkout step writes. Without an explicit trust
+      configuration, git refuses to operate with:
+      "fatal: detected dubious ownership in repository at '/workspace/...'"
+    </description>
+    <fix><![CDATA[
+// As the FIRST line of any shell step that calls git
+sh '''
+    git config --global --add safe.directory "$WORKSPACE"
+    git diff origin/main...HEAD > git-diff.txt
+'''
+    ]]></fix>
+    <why_workspace_not_wildcard>
+      Use $WORKSPACE — Jenkins-provided env var pointing at this job's workspace —
+      rather than the '*' wildcard. Scoping the trust to the actual job directory
+      is safer than trusting every directory the container happens to see.
+    </why_workspace_not_wildcard>
+  </quirk>
+
+  <quirk priority="critical" name="bob_cwd_subtree_only">
+    <title>Bob's tooling only reads files within its working directory subtree</title>
+    <description>
+      When askBob invokes Bob in container('bob'), Bob's working directory is the
+      Jenkins job workspace — physically /workspace/workspace/&lt;folder&gt;/&lt;job&gt;/.
+      Bob's file-reading tools refuse paths *outside* that subtree. The volume
+      mount root /workspace/ is technically reachable from the container's
+      filesystem but is *outside* Bob's reachable subtree, so absolute paths
+      starting /workspace/... will fail.
+    </description>
+    <implication>
+      Any file shared between a shell step (which Jenkins writes via writeFile or
+      shell redirect) and a Bob prompt (which tells Bob "read this file") must use
+      a relative path on both sides. Relative paths resolve to $WORKSPACE in the
+      shell step and to Bob's CWD (the same physical directory) in the Bob prompt
+      — same file, both sides happy.
+    </implication>
+    <good><![CDATA[
+// Shell writes a relative path
+sh "git diff origin/main...HEAD > git-diff.txt"
+
+// Bob is told the same relative path
+def analysis = askBob(
+    "Read git-diff.txt and tell me what changed in this PR.",
+    'pipeline-git-diff-overview'
+)
+    ]]></good>
+    <bad><![CDATA[
+// Bob will refuse — '/workspace/git-diff.txt' is outside its subtree
+sh "git diff origin/main...HEAD > /workspace/git-diff.txt"
+def analysis = askBob(
+    "Read /workspace/git-diff.txt and tell me what changed in this PR.",
+    'pipeline-git-diff-overview'
+)
+    ]]></bad>
+    <error_signature>
+      "git-diff.txt is not accessible from the current workspace directory" — or
+      similar phrasing about path access. If you see this, you wrote to (or asked
+      Bob to read) an absolute /workspace/... path. Switch to relative.
+    </error_signature>
+  </quirk>
+
+  <quirk priority="high" name="three_dot_diff">
+    <title>Use three-dot diff syntax for PR-style diffs</title>
+    <description>
+      git diff origin/main...HEAD (three dots) gives the diff of "everything this
+      branch added since it forked from main" — the same view a reviewer sees in a
+      PR. git diff origin/main..HEAD (two dots) compares two endpoints and
+      includes commits that have landed on main since the branch forked, which is
+      noisy and confusing.
+    </description>
+    <good>git diff origin/main...HEAD</good>
+    <bad>git diff origin/main..HEAD (two dots — wrong shape)</bad>
+  </quirk>
+
+  <quirk priority="high" name="checkout_scm_already_fetched_main">
+    <title>checkout scm already fetches origin/main</title>
+    <description>
+      Jenkins's `checkout scm` step (run once at the top of the pipeline) fetches
+      origin/main alongside the working branch. Stages don't need to add an
+      explicit `git fetch origin main` before diffing.
+    </description>
+    <fix>Just diff against origin/main directly; don't add a redundant fetch.</fix>
+  </quirk>
+
+  <quirk priority="medium" name="default_container_is_build_tools">
+    <title>Default container for unwrapped sh steps is build-tools</title>
+    <description>
+      The Jenkinsfile sets `defaultContainer 'build-tools'`. Any sh step not
+      wrapped in a container() block runs in build-tools (maven:3.9 +
+      eclipse-temurin-17 + git). You don't need to wrap mvn or git steps.
+    </description>
+    <relevance>
+      You only switch containers for the bob CLI (handled by askBob) or for oc /
+      kubectl (wrap in container('oc-tools')). See 3_container_selection.xml.
+    </relevance>
+  </quirk>
+
+  <reusable_environment_block>
+    <description>
+      When asking Bob to *write* a pipeline stage, prepend the following block to
+      your prompt. It captures every quirk above in a form Bob can use directly.
+      Same block, every pipeline lab.
+    </description>
+    <block><![CDATA[
+Environment context for our Jenkins + Bob pipeline setup:
+
+- As the FIRST line of any git-using shell step, run:
+    git config --global --add safe.directory "$WORKSPACE"
+  Without this, git refuses to operate inside the build-tools container with
+  "fatal: detected dubious ownership in repository". Scope to $WORKSPACE, not '*'.
+
+- Bob's working directory is the Jenkins job workspace, and Bob's tooling only
+  reads files within that subtree. Any file shared between a shell step and Bob
+  must use a PLAIN RELATIVE PATH (e.g. `git-diff.txt`), NEVER `/workspace/...`.
+
+- Use three-dot syntax for PR-style diffs: git diff origin/main...HEAD.
+
+- Jenkins's `checkout scm` already fetches origin/main — no extra fetch needed.
+
+- Default container for sh steps is build-tools (Maven + JDK 17 + git). Wrap
+  steps in container('oc-tools') for oc/kubectl. Bob calls go through askBob.
+    ]]></block>
+  </reusable_environment_block>
+
+  <quick_reference>
+    <command>git config --global --add safe.directory "$WORKSPACE"  # first line of any git step</command>
+    <command>git diff origin/main...HEAD > git-diff.txt  # three-dot, relative path</command>
+    <command>askBob("Read git-diff.txt and ...", 'mode-slug')  # Bob reads same relative path</command>
+  </quick_reference>
+</pipeline_environment_quirks>

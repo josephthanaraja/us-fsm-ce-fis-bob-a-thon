@@ -1,0 +1,517 @@
+<common_stage_patterns>
+  <overview>
+    This guide provides complete, production-ready stage patterns for common Bob integration
+    scenarios in Jenkins pipelines. Each pattern includes error handling, output formatting,
+    and archiving best practices using the correct askBob helper signature.
+  </overview>
+
+  <pattern name="pr_review_stage">
+    <description>
+      Analyze pull request changes for code quality, security, and best practices
+    </description>
+    <when_to_use>
+      - On pull request builds
+      - Before merging to main branch
+      - As part of code review process
+    </when_to_use>
+    <complete_example><![CDATA[
+stage('Bob PR Review') {
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    steps {
+        script {
+            echo '════════════════════════════════════════════════════════'
+            echo '  🤖 Bob PR Review Analysis'
+            echo "  Started: ${new Date()}"
+            echo '════════════════════════════════════════════════════════'
+            
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                // Capture git diff
+                def diffContent = sh(
+                    script: 'git diff origin/main...HEAD',
+                    returnStdout: true
+                ).trim()
+                
+                // Build prompt
+                def prompt = """
+Review the following code changes for:
+- Code quality and maintainability
+- Security vulnerabilities
+- Performance issues
+- Best practices adherence
+- Test coverage
+
+Changes:
+${diffContent}
+"""
+                
+                // Run Bob analysis
+                def analysis = askBob(prompt, 'solution-code-reviewer')
+                
+                // Display summary
+                echo ''
+                if (analysis.contains('CRITICAL')) {
+                    echo '  ⚠️  Critical issues found'
+                } else if (analysis.contains('WARNING')) {
+                    echo '  ⚠️  Warnings found'
+                } else {
+                    echo '  ✅ No major issues detected'
+                }
+                
+                // Save for archiving
+                writeFile file: 'bob-pr-review.txt', text: analysis
+            }
+            
+            echo ''
+            echo "  Completed: ${new Date()}"
+            echo "  Full report: bob-pr-review.txt (archived)"
+            echo '════════════════════════════════════════════════════════'
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-pr-review.txt',
+                           allowEmptyArchive: true,
+                           fingerprint: true
+        }
+    }
+}
+    ]]></complete_example>
+  </pattern>
+
+  <pattern name="test_failure_analysis_stage">
+    <description>
+      Analyze test failures to identify root causes and suggest fixes
+    </description>
+    <when_to_use>
+      - After test stage fails
+      - To diagnose flaky tests
+      - To understand test failure patterns
+    </when_to_use>
+    <complete_example><![CDATA[
+stage('Run Tests') {
+    steps {
+        script {
+            container('maven') {
+                sh """
+                    mvn test > ${WORKSPACE}/test-output.log 2>&1 || true
+                """
+            }
+        }
+    }
+}
+
+stage('Analyze Test Failures') {
+    when {
+        expression {
+            def testLog = readFile("${WORKSPACE}/test-output.log")
+            return testLog.contains('FAILURE') || testLog.contains('ERROR')
+        }
+    }
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    steps {
+        script {
+            echo '════════════════════════════════════════════════════════'
+            echo '  🔍 Bob Test Failure Analysis'
+            echo '════════════════════════════════════════════════════════'
+            
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                def testLog = readFile("${WORKSPACE}/test-output.log")
+                
+                def prompt = """
+Analyze the following test failures and provide:
+1. Root cause of each failure
+2. Whether failures are related
+3. Suggested fixes with code examples
+4. Priority of fixes (critical, high, medium, low)
+
+Test Output:
+${testLog}
+"""
+                
+                def analysis = askBob(prompt, 'solution-test-failure-analyzer')
+                
+                echo ''
+                echo '  Analysis Summary:'
+                if (analysis.contains('CRITICAL')) {
+                    echo '  🔴 Critical test failures detected'
+                } else {
+                    echo '  🟡 Test failures analyzed'
+                }
+                
+                writeFile file: 'bob-test-analysis.txt', text: analysis
+            }
+            
+            echo ''
+            echo "  Full analysis: bob-test-analysis.txt (archived)"
+            echo '════════════════════════════════════════════════════════'
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-test-analysis.txt,test-output.log',
+                           allowEmptyArchive: true,
+                           fingerprint: true
+        }
+    }
+}
+    ]]></complete_example>
+  </pattern>
+
+  <pattern name="security_scan_stage">
+    <description>
+      Perform security analysis on code changes or entire codebase
+    </description>
+    <when_to_use>
+      - Before production deployments
+      - On schedule (nightly security scans)
+      - After dependency updates
+    </when_to_use>
+    <complete_example><![CDATA[
+stage('Bob Security Scan') {
+    options {
+        timeout(time: 10, unit: 'MINUTES')
+    }
+    steps {
+        script {
+            echo '════════════════════════════════════════════════════════'
+            echo '  🔒 Bob Security Analysis'
+            echo '════════════════════════════════════════════════════════'
+            
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                // Get list of Java files
+                def filesToScan = sh(
+                    script: 'find order-service/src -name "*.java"',
+                    returnStdout: true
+                ).trim()
+                
+                def prompt = """
+Perform comprehensive security analysis on these files:
+
+${filesToScan}
+
+Focus on:
+- SQL injection vulnerabilities
+- Authentication/authorization issues
+- Input validation gaps
+- Sensitive data exposure
+- Insecure dependencies
+- OWASP Top 10 vulnerabilities
+
+Output in markdown format with:
+- Executive summary
+- Findings by severity (Critical, High, Medium, Low)
+- Specific code locations
+- Remediation recommendations
+"""
+                
+                def analysis = askBob(prompt, 'solution-security-scanner')
+                
+                def criticalCount = (analysis =~ /Critical:/).count
+                def highCount = (analysis =~ /High:/).count
+                
+                echo ''
+                echo "  Security Findings:"
+                echo "    Critical: ${criticalCount}"
+                echo "    High: ${highCount}"
+                
+                if (criticalCount > 0) {
+                    echo ''
+                    echo '  ⚠️  CRITICAL SECURITY ISSUES FOUND'
+                    currentBuild.result = 'UNSTABLE'
+                }
+                
+                writeFile file: 'bob-security-report.md', text: analysis
+            }
+            
+            echo ''
+            echo "  Full report: bob-security-report.md (archived)"
+            echo '════════════════════════════════════════════════════════'
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-security-report.md',
+                           allowEmptyArchive: true,
+                           fingerprint: true
+        }
+    }
+}
+    ]]></complete_example>
+  </pattern>
+
+  <pattern name="build_failure_diagnosis_stage">
+    <description>
+      Diagnose build failures and suggest fixes
+    </description>
+    <when_to_use>
+      - After compilation fails
+      - When build errors are unclear
+      - To identify dependency issues
+    </when_to_use>
+    <complete_example><![CDATA[
+stage('Build') {
+    steps {
+        script {
+            container('maven') {
+                sh """
+                    mvn clean compile > ${WORKSPACE}/build.log 2>&1 || true
+                """
+            }
+        }
+    }
+}
+
+stage('Diagnose Build Failures') {
+    when {
+        expression {
+            def buildLog = readFile("${WORKSPACE}/build.log")
+            return buildLog.contains('BUILD FAILURE') || buildLog.contains('ERROR')
+        }
+    }
+    options {
+        timeout(time: 5, unit: 'MINUTES')
+    }
+    steps {
+        script {
+            echo '════════════════════════════════════════════════════════'
+            echo '  🔧 Bob Build Failure Diagnosis'
+            echo '════════════════════════════════════════════════════════'
+            
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                def buildLog = readFile("${WORKSPACE}/build.log")
+                
+                def prompt = """
+Diagnose the following build failures:
+
+1. Identify the root cause of each error
+2. Explain why the build failed
+3. Provide specific fixes with code examples
+4. Suggest preventive measures
+
+Build Log:
+${buildLog}
+"""
+                
+                def analysis = askBob(prompt, 'solution-build-analyzer')
+                echo analysis
+                
+                writeFile file: 'bob-build-diagnosis.txt', text: analysis
+            }
+            
+            echo '════════════════════════════════════════════════════════'
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-build-diagnosis.txt,build.log',
+                           allowEmptyArchive: true
+        }
+    }
+}
+    ]]></complete_example>
+  </pattern>
+
+  <pattern name="comprehensive_analysis_stage">
+    <description>
+      Perform comprehensive analysis combining multiple aspects (changes, tests, build)
+    </description>
+    <when_to_use>
+      - For important releases
+      - When multiple issues are present
+      - For thorough pre-merge analysis
+    </when_to_use>
+    <complete_example><![CDATA[
+stage('Bob Comprehensive Analysis') {
+    options {
+        timeout(time: 10, unit: 'MINUTES')
+    }
+    steps {
+        script {
+            echo '════════════════════════════════════════════════════════'
+            echo '  📊 Bob Comprehensive Analysis'
+            echo '════════════════════════════════════════════════════════'
+            
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                // Gather all available data
+                def diffContent = ""
+                if (fileExists("${WORKSPACE}/changes.diff")) {
+                    diffContent = readFile("${WORKSPACE}/changes.diff")
+                } else {
+                    diffContent = sh(
+                        script: 'git diff origin/main...HEAD',
+                        returnStdout: true
+                    ).trim()
+                }
+                
+                def buildLog = ""
+                if (fileExists("${WORKSPACE}/build.log")) {
+                    buildLog = readFile("${WORKSPACE}/build.log")
+                }
+                
+                def testLog = ""
+                if (fileExists("${WORKSPACE}/test-output.log")) {
+                    testLog = readFile("${WORKSPACE}/test-output.log")
+                }
+                
+                def prompt = """
+Perform comprehensive analysis of this build:
+
+=== CODE CHANGES ===
+${diffContent ?: 'No changes detected'}
+
+=== BUILD LOG ===
+${buildLog ?: 'Build log not available'}
+
+=== TEST RESULTS ===
+${testLog ?: 'Test results not available'}
+
+Provide:
+1. Overall assessment of code quality
+2. Impact analysis of changes
+3. Test failure root causes (if any)
+4. Build issue diagnosis (if any)
+5. Security concerns
+6. Performance implications
+7. Recommendations for improvement
+
+Output in markdown format with clear sections.
+"""
+                
+                def analysis = askBob(prompt, 'solution-comprehensive-analyzer')
+                
+                echo ''
+                echo '  Analysis Sections:'
+                if (analysis.contains('CRITICAL')) {
+                    echo '    ⚠️  Critical issues found'
+                }
+                if (analysis.contains('Security')) {
+                    echo '    🔒 Security analysis included'
+                }
+                if (analysis.contains('Performance')) {
+                    echo '    ⚡ Performance analysis included'
+                }
+                
+                writeFile file: 'bob-comprehensive-analysis.md', text: analysis
+            }
+            
+            echo ''
+            echo "  Full analysis: bob-comprehensive-analysis.md (archived)"
+            echo '════════════════════════════════════════════════════════'
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'bob-comprehensive-analysis.md',
+                           allowEmptyArchive: true,
+                           fingerprint: true
+        }
+    }
+}
+    ]]></complete_example>
+  </pattern>
+
+  <customization_guide>
+    <guideline name="adjust_timeouts">
+      <description>
+        Adjust timeout values based on your codebase size and Bob response times
+      </description>
+      <recommendations>
+        <recommendation>Small projects: 2-3 minutes</recommendation>
+        <recommendation>Medium projects: 5-7 minutes</recommendation>
+        <recommendation>Large projects: 10-15 minutes</recommendation>
+      </recommendations>
+    </guideline>
+
+    <guideline name="customize_prompts">
+      <description>
+        Tailor prompts to your project's specific needs and standards
+      </description>
+      <examples>
+        <example>Add company-specific coding standards</example>
+        <example>Include project-specific security requirements</example>
+        <example>Reference internal documentation or guidelines</example>
+      </examples>
+    </guideline>
+
+    <guideline name="adjust_error_handling">
+      <description>
+        Modify error handling based on how critical Bob analysis is
+      </description>
+      <options>
+        <option>UNSTABLE: Analysis is informational, don't block pipeline</option>
+        <option>FAILURE: Analysis is important, mark build as failed but continue</option>
+        <option>ABORTED: Analysis is critical, stop pipeline on failure</option>
+      </options>
+    </guideline>
+
+    <guideline name="combine_patterns">
+      <description>
+        Combine multiple patterns in a single pipeline
+      </description>
+      <example><![CDATA[
+// Example: PR review + security scan in parallel
+pipeline {
+    stages {
+        stage('Build and Test') {
+            // ... build and test stages ...
+        }
+        
+        stage('Bob Analysis') {
+            parallel {
+                stage('PR Review') {
+                    steps {
+                        script {
+                            def diff = sh(script: 'git diff origin/main...HEAD', returnStdout: true).trim()
+                            def prompt = "Review these changes:\n${diff}"
+                            def analysis = askBob(prompt, 'solution-code-reviewer')
+                            writeFile file: 'bob-pr-review.txt', text: analysis
+                        }
+                    }
+                }
+                stage('Security Scan') {
+                    steps {
+                        script {
+                            def files = sh(script: 'find . -name "*.java"', returnStdout: true).trim()
+                            def prompt = "Security scan:\n${files}"
+                            def analysis = askBob(prompt, 'solution-security-scanner')
+                            writeFile file: 'bob-security.txt', text: analysis
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'bob-*.txt', allowEmptyArchive: true
+                }
+            }
+        }
+    }
+}
+      ]]></example>
+    </guideline>
+  </customization_guide>
+
+  <quick_reference>
+    <pattern_summary>
+      <item>pr_review_stage - Analyze code changes in pull requests</item>
+      <item>test_failure_analysis_stage - Diagnose test failures</item>
+      <item>security_scan_stage - Perform security analysis</item>
+      <item>build_failure_diagnosis_stage - Diagnose build errors</item>
+      <item>comprehensive_analysis_stage - Multi-aspect analysis</item>
+    </pattern_summary>
+    
+    <key_points>
+      <point>Always capture askBob return value: def analysis = askBob(prompt, mode)</point>
+      <point>Use triple-quoted strings for multi-line prompts</point>
+      <point>Archive analysis with writeFile + archiveArtifacts</point>
+      <point>Use catchError for resilience</point>
+      <point>Add clear console banners for visibility</point>
+    </key_points>
+  </quick_reference>
+</common_stage_patterns>
+
+<!-- Made with Bob -->

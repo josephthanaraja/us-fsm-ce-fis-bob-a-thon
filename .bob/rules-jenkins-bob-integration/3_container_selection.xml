@@ -1,0 +1,205 @@
+<container_selection>
+  <overview>
+    The Jenkins agent pod has three containers: build-tools, oc-tools, and bob. Knowing
+    which container to run each step in — and when to switch — is essential for stages
+    that combine git, Maven, OpenShift, and Bob CLI work.
+  </overview>
+
+  <containers>
+    <container name="build-tools" default="true">
+      <image>maven:3.9-eclipse-temurin-17</image>
+      <description>Default container. Has Maven, JDK 17, git, and basic shell utilities.</description>
+      <use_for>
+        <case>Maven commands (mvn compile, mvn test, mvn package)</case>
+        <case>Git commands (git diff, git log, git status)</case>
+        <case>File operations (cat, ls, mv, rm, mkdir)</case>
+        <case>Building Java applications</case>
+      </use_for>
+      <not_available>
+        <item>bob CLI</item>
+        <item>oc / kubectl</item>
+      </not_available>
+    </container>
+
+    <container name="oc-tools">
+      <image>quay.io/openshift/origin-cli</image>
+      <description>OpenShift CLI container.</description>
+      <use_for>
+        <case>oc / kubectl commands</case>
+        <case>OpenShift resource manipulation (deploys, rollouts)</case>
+      </use_for>
+      <not_available>
+        <item>bob CLI</item>
+        <item>Maven / JDK</item>
+      </not_available>
+    </container>
+
+    <container name="bob">
+      <description>Bob CLI sidecar. Has bob in PATH and reads .bob/custom_modes.yaml from the workspace.</description>
+      <use_for>
+        <case>Every askBob invocation (the helper wraps this for you)</case>
+        <case>Direct bob CLI calls (rare — prefer askBob)</case>
+      </use_for>
+      <not_available>
+        <item>Maven / JDK</item>
+        <item>git (use build-tools for git, then hand the result to Bob)</item>
+        <item>oc / kubectl</item>
+      </not_available>
+    </container>
+  </containers>
+
+  <selection_rules>
+    <rule priority="critical">
+      <title>Default container is build-tools — most steps run there without wrapping</title>
+      <description>
+        The Jenkinsfile sets defaultContainer 'build-tools'. Any sh step not wrapped in
+        a container() block runs in build-tools. So git and mvn just work; you don't
+        need to wrap them.
+      </description>
+      <example><![CDATA[
+// Runs in build-tools (default) — no wrapping needed
+sh "git diff origin/main...HEAD > git-diff.txt"
+sh "mvn test"
+      ]]></example>
+    </rule>
+
+    <rule priority="critical">
+      <title>Always use askBob for Bob CLI invocations</title>
+      <description>
+        The askBob helper enters container('bob') for you. Don't duplicate it.
+      </description>
+      <correct><![CDATA[
+def analysis = askBob(prompt, 'pipeline-git-diff-overview')
+      ]]></correct>
+      <incorrect><![CDATA[
+// Wrong — bob isn't in build-tools
+sh "bob -p 'review this'"
+
+// Redundant — askBob already does this
+container('bob') {
+    askBob(prompt, 'mode-slug')
+}
+      ]]></incorrect>
+    </rule>
+
+    <rule priority="high">
+      <title>Wrap oc-tools steps explicitly</title>
+      <description>
+        oc-tools is not the default. Wrap any oc/kubectl step.
+      </description>
+      <example><![CDATA[
+container('oc-tools') {
+    sh "oc whoami"
+    sh "oc get pods"
+}
+      ]]></example>
+    </rule>
+
+    <rule priority="medium">
+      <title>Group related work to minimize switches</title>
+      <description>
+        Each container() switch is a small overhead. Group related steps.
+      </description>
+      <good><![CDATA[
+container('oc-tools') {
+    sh "oc rollout status deployment/myapp"
+    sh "oc get pods -l app=myapp"
+}
+
+def analysis1 = askBob(prompt1, 'mode-1')
+def analysis2 = askBob(prompt2, 'mode-2')
+      ]]></good>
+      <bad><![CDATA[
+container('oc-tools') { sh "oc rollout status deployment/myapp" }
+askBob(prompt1, 'mode-1')
+container('oc-tools') { sh "oc get pods -l app=myapp" }
+askBob(prompt2, 'mode-2')
+      ]]></bad>
+    </rule>
+  </selection_rules>
+
+  <common_patterns>
+    <pattern name="git_then_bob">
+      <description>Compute a git artifact in build-tools, hand it to Bob</description>
+      <example><![CDATA[
+stage('PR Review') {
+    steps {
+        script {
+            // Default container (build-tools) — git is here
+            sh '''
+                git config --global --add safe.directory "$WORKSPACE"
+                git diff origin/main...HEAD > git-diff.txt
+            '''
+
+            // askBob switches to bob container internally
+            def analysis = askBob(
+                "Read git-diff.txt and tell me what changed in this PR.",
+                'pipeline-git-diff-overview'
+            )
+
+            echo analysis
+            writeFile file: 'bob-pr-review.md', text: analysis
+            archiveArtifacts artifacts: 'bob-pr-review.md', allowEmptyArchive: true
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+
+    <pattern name="maven_then_bob">
+      <description>Run tests in build-tools, hand failure logs to Bob</description>
+      <example><![CDATA[
+stage('Unit Tests') {
+    steps {
+        script {
+            // build-tools is default; mvn runs here
+            sh "mvn -f order-service/pom.xml test || true"
+
+            def reports = sh(
+                script: "find order-service/target/surefire-reports -name '*.txt' -exec cat {} +",
+                returnStdout: true
+            ).trim()
+
+            def analysis = askBob(
+                "Analyze these test failures and suggest fixes:\n${reports}",
+                'pipeline-test-failure-analyzer'
+            )
+
+            echo analysis
+        }
+    }
+}
+      ]]></example>
+    </pattern>
+  </common_patterns>
+
+  <troubleshooting>
+    <issue name="bob_not_found">
+      <symptom>bob: command not found</symptom>
+      <cause>Direct sh "bob ..." in the default (build-tools) container.</cause>
+      <fix>Use askBob, which wraps container('bob') for you.</fix>
+    </issue>
+
+    <issue name="mvn_not_found_in_bob">
+      <symptom>mvn: command not found inside container('bob') { ... }</symptom>
+      <cause>Trying to run Maven inside the bob container.</cause>
+      <fix>Run mvn in the default container; only switch to bob for askBob calls.</fix>
+    </issue>
+
+    <issue name="oc_not_found">
+      <symptom>oc: command not found</symptom>
+      <cause>Running oc commands without container('oc-tools') wrapping.</cause>
+      <fix>Wrap oc/kubectl steps in container('oc-tools') { ... }.</fix>
+    </issue>
+  </troubleshooting>
+
+  <quick_reference>
+    <command>// build-tools (default): just write the sh step</command>
+    <command>sh "git diff origin/main...HEAD > git-diff.txt"</command>
+    <command>sh "mvn test"</command>
+    <command>// bob: use askBob (it wraps container('bob') internally)</command>
+    <command>def analysis = askBob(prompt, 'mode-slug')</command>
+    <command>// oc-tools: wrap explicitly</command>
+    <command>container('oc-tools') { sh "oc get pods" }</command>
+  </quick_reference>
+</container_selection>

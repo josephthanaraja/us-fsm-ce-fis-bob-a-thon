@@ -1,8 +1,19 @@
 # Labs
 
-**Participants:** start with [`00_SETUP.md`](00_SETUP.md) — it walks through creating your working branch and configuring your Jenkins pipeline before Lab 1.
+## Table of Contents
 
-**Lab contributors:** each workshop lab is a single markdown file in this directory named `LAB<N>_<TOPIC>.md` (e.g., `LAB1_PR_REVIEW.md`, `LAB2_UNIT_TESTING.md`).
+- [For Participants](#for-participants)
+- [For Lab Contributors](#for-lab-contributors)
+
+---
+
+## For Participants
+
+**Start with [`00_SETUP.md`](00_SETUP.md)** — it walks through creating your working branch and configuring your Jenkins pipeline before Lab 1.
+
+## For Lab Contributors
+
+Each workshop lab is a single markdown file in this directory named `LAB<N>_<TOPIC>.md` (e.g., `LAB1_PR_REVIEW.md`, `LAB2_UNIT_TESTING.md`).
 
 As you build a lab:
 

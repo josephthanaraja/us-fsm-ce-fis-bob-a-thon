@@ -1,0 +1,120 @@
+<workflow_instructions>
+  <mode_overview>
+    This mode provides quick, risk-oriented overviews of git diffs for Jenkins console output.
+    It's designed for senior developers who need to quickly understand what changed and where
+    the risks are, without performing a full code review.
+  </mode_overview>
+
+  <initialization_steps>
+    <step number="1">
+      <action>Receive git diff input</action>
+      <details>
+        The diff will typically be provided via:
+        - Direct paste in the prompt
+        - File path to a diff file
+        - Git command output
+      </details>
+    </step>
+    
+    <step number="2">
+      <action>Parse the diff to identify changed files</action>
+      <tools>
+        <tool>read_file - If diff is in a file</tool>
+      </tools>
+      <focus>
+        - File paths and types
+        - Lines added/removed
+        - Context of changes
+      </focus>
+    </step>
+  </initialization_steps>
+
+  <main_workflow>
+    <phase name="analysis">
+      <description>Quickly analyze each changed file for notable changes</description>
+      <steps>
+        <step>Identify the type of change (new feature, bug fix, refactor, config change)</step>
+        <step>Assess the scope and impact of changes</step>
+        <step>Flag high-risk patterns immediately</step>
+      </steps>
+      <skip_if>
+        - Only whitespace or formatting changes
+        - Only comment changes
+        - Trivial configuration updates
+      </skip_if>
+    </phase>
+
+    <phase name="risk_assessment">
+      <description>Assign risk levels to notable changes</description>
+      <criteria>
+        <high_risk>
+          - Changes to authentication/authorization logic
+          - Database schema modifications
+          - Concurrency/threading changes
+          - Security-sensitive code paths
+          - Performance-critical hot paths
+          - Error handling removal or weakening
+        </high_risk>
+        <medium_risk>
+          - Business logic changes
+          - API contract modifications
+          - New dependencies
+          - Configuration changes affecting behavior
+          - Missing test coverage for new code
+        </medium_risk>
+        <low_risk>
+          - Refactoring with same behavior
+          - Documentation updates
+          - Test additions
+          - Logging improvements
+        </low_risk>
+      </criteria>
+    </phase>
+
+    <phase name="output_generation">
+      <description>Generate plain text output for Jenkins console</description>
+      <structure>
+        <section name="Summary">
+          Brief overview of what changed (1-3 sentences total)
+        </section>
+        <section name="Risk">
+          For each notable change:
+          - File/component name
+          - What changed (1-2 sentences)
+          - Risk level: HIGH / MEDIUM / LOW
+        </section>
+        <section name="Watch for">
+          Specific concerns to check in detailed review:
+          - Null-safety issues
+          - Concurrency problems
+          - Behavior changes
+          - Security surface expansion
+          - Performance hot paths
+          - Missing tests
+        </section>
+      </structure>
+    </phase>
+  </main_workflow>
+
+  <completion_criteria>
+    <criterion>Output is plain text (no ANSI, no markdown tables)</criterion>
+    <criterion>All notable changes have risk assessments</criterion>
+    <criterion>Specific watch-for items are listed</criterion>
+    <criterion>Output is concise (suitable for console viewing)</criterion>
+    <criterion>If nothing notable, stated clearly in one sentence</criterion>
+  </completion_criteria>
+
+  <special_cases>
+    <case name="no_notable_changes">
+      <output>No notable changes detected. Only formatting, comments, or trivial updates.</output>
+    </case>
+    <case name="large_diff">
+      <approach>Focus on highest-risk changes first, summarize lower-risk changes in groups</approach>
+    </case>
+    <case name="multiple_files">
+      <approach>Group related changes, prioritize by risk level</approach>
+    </case>
+  </special_cases>
+</workflow_instructions>
+
+<!-- Made with Bob -->

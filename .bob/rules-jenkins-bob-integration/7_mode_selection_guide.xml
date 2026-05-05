@@ -1,0 +1,210 @@
+<mode_selection_guide>
+  <overview>
+    Each pipeline stage that calls askBob should pin a specific custom mode. The mode
+    encapsulates *how* Bob should respond — output format, what to prioritize, what
+    permissions Bob has. Selecting the right mode is the difference between getting
+    a structured risk-ranked review and getting a wall of generic prose.
+  </overview>
+
+  <available_modes>
+    <description>
+      Two categories live in .bob/custom_modes.yaml:
+      - solution-* modes: pre-built reference modes added by lab contributors.
+      - pipeline-* modes (and any other slug): participant-authored modes added
+        during the workshop (Lab 1 has participants build pipeline-git-diff-overview).
+    </description>
+
+    <mode slug="pipeline-git-diff-overview">
+      <added_by>Lab 1 — participants build it themselves</added_by>
+      <purpose>Senior-developer-style overview of a PR's diff: short summary, risk
+      band (high/medium/low), and a "watch for" list. Plain text, no markdown
+      tables, suitable for a Jenkins console.</purpose>
+      <inputs>git-diff.txt (relative path) — the branch's diff against main</inputs>
+      <permissions>read</permissions>
+      <example_call><![CDATA[
+def analysis = askBob(
+    "Read git-diff.txt and produce the senior-developer PR overview.",
+    'pipeline-git-diff-overview'
+)
+      ]]></example_call>
+    </mode>
+
+    <mode slug="pipeline-test-failure-analyzer">
+      <added_by>Lab 2 — participants build it themselves</added_by>
+      <purpose>Diagnoses failing JUnit/Surefire reports. Identifies root cause,
+      suggests a fix, and groups related failures.</purpose>
+      <inputs>Surefire/Failsafe report contents (concatenated text reports, or
+      raw stack traces)</inputs>
+      <permissions>read</permissions>
+      <example_call><![CDATA[
+def analysis = askBob(
+    "Analyze these test failures and suggest fixes:\n${reports}",
+    'pipeline-test-failure-analyzer'
+)
+      ]]></example_call>
+    </mode>
+
+    <mode slug="solution-code-reviewer">
+      <added_by>Pre-built reference (in custom_modes.yaml)</added_by>
+      <purpose>General Java code review with line-level recommendations. More
+      detailed than pipeline-git-diff-overview — slower, deeper.</purpose>
+      <inputs>git diff or full source files</inputs>
+      <permissions>read, edit (Java/XML/properties only)</permissions>
+      <example_call><![CDATA[
+def analysis = askBob(
+    "Review these changes for Java best practices and security:\n${diffContent}",
+    'solution-code-reviewer'
+)
+      ]]></example_call>
+    </mode>
+  </available_modes>
+
+  <selection_logic>
+    <rule>
+      <if>The stage analyzes a git diff for a PR-style risk overview</if>
+      <then>pipeline-git-diff-overview</then>
+    </rule>
+    <rule>
+      <if>The stage analyzes failing test output (Surefire / Failsafe / JUnit)</if>
+      <then>pipeline-test-failure-analyzer</then>
+    </rule>
+    <rule>
+      <if>The stage wants a thorough, line-level Java code review</if>
+      <then>solution-code-reviewer</then>
+    </rule>
+    <rule>
+      <if>None of the above match — you're doing something this catalog doesn't cover</if>
+      <then>
+        Build a new mode with Mode Writer rather than reusing one that *almost*
+        fits. Each pipeline stage benefits from a mode tuned to its inputs and
+        output expectations. See the labs for the prompt-then-promote pattern.
+      </then>
+    </rule>
+  </selection_logic>
+
+  <conventions>
+    <convention name="pipeline-_prefix_for_pipeline_modes">
+      <description>
+        Modes invoked from the pipeline (read-only, narrow permissions, plain-text
+        output suited to a Jenkins console) are prefixed `pipeline-`. This signals
+        they're CI-side, not IDE-side. IDE-side modes (broader permissions, used in
+        the Bob IDE during a task) don't need a prefix or use a `solution-` prefix
+        if pre-built.
+      </description>
+    </convention>
+
+    <convention name="read-only_for_pipeline_modes">
+      <description>
+        A mode invoked from the pipeline should declare `groups: [read]` only.
+        Pipelines run unattended; minimum permissions reduce blast radius if a mode
+        is misconfigured.
+      </description>
+    </convention>
+
+    <convention name="plain_text_output_for_pipeline_modes">
+      <description>
+        Jenkins console doesn't render markdown tables or ANSI colors well. Pipeline
+        modes should produce plain text with simple section headers (Summary, Risk,
+        Watch for). Save fancy formatting for IDE modes.
+      </description>
+    </convention>
+  </conventions>
+
+  <combinations>
+    <description>
+      Most pipelines run one Bob analysis per stage. If you want multiple lenses
+      (overview + deep review + security), use separate stages — they archive
+      separate artifacts and the build log stays scannable.
+    </description>
+    <example><![CDATA[
+stages {
+    stage('PR Overview') {
+        steps {
+            script {
+                def overview = askBob(
+                    "Read git-diff.txt and produce the senior-developer PR overview.",
+                    'pipeline-git-diff-overview'
+                )
+                echo overview
+                writeFile file: 'bob-pr-review.md', text: overview
+            }
+        }
+        post { always { archiveArtifacts artifacts: 'bob-pr-review.md', allowEmptyArchive: true } }
+    }
+
+    stage('Deep Code Review') {
+        when { expression { /* only if the PR is large or risky */ true } }
+        steps {
+            script {
+                def review = askBob(
+                    "Review these changes line-by-line:\n${readFile('git-diff.txt')}",
+                    'solution-code-reviewer'
+                )
+                echo review
+                writeFile file: 'bob-deep-review.md', text: review
+            }
+        }
+        post { always { archiveArtifacts artifacts: 'bob-deep-review.md', allowEmptyArchive: true } }
+    }
+}
+    ]]></example>
+  </combinations>
+
+  <anti_patterns>
+    <anti_pattern name="reusing_an_almost_right_mode">
+      <description>Picking a mode that *kind of* fits because building a new one
+      feels like work.</description>
+      <impact>
+        The mode's output format and priorities don't match what the stage needs.
+        You end up writing long prompts to override the mode — at which point the
+        mode is doing nothing useful.
+      </impact>
+      <fix>Build a new mode with Mode Writer; it takes 5 minutes.</fix>
+    </anti_pattern>
+
+    <anti_pattern name="default_mode_in_production">
+      <description>Calling askBob without a mode (relying on Bob's default) for a
+      stage that runs on every push.</description>
+      <impact>
+        Output drifts shape from run to run. Different commits get different
+        formats. Hard to consume downstream.
+      </impact>
+      <fix>
+        Pin a custom mode for any stage that runs on every push. Default mode is
+        fine for one-off exploration in the IDE; not for repeatable CI.
+      </fix>
+    </anti_pattern>
+
+    <anti_pattern name="ide_mode_in_pipeline">
+      <description>Using an IDE-side mode (broad permissions, markdown-heavy
+      output) in the pipeline.</description>
+      <impact>
+        Wider permissions than needed; output is harder to read in a Jenkins
+        console.
+      </impact>
+      <fix>
+        Build a pipeline-* twin if you need similar behavior in CI — read-only,
+        plain-text output.
+      </fix>
+    </anti_pattern>
+  </anti_patterns>
+
+  <quick_reference>
+    <mapping>
+      <task>PR diff overview (per-push)</task>
+      <mode>pipeline-git-diff-overview</mode>
+    </mapping>
+    <mapping>
+      <task>Failing test analysis</task>
+      <mode>pipeline-test-failure-analyzer</mode>
+    </mapping>
+    <mapping>
+      <task>Deep Java code review</task>
+      <mode>solution-code-reviewer</mode>
+    </mapping>
+    <mapping>
+      <task>Anything else</task>
+      <mode>Build a new pipeline-* mode with Mode Writer</mode>
+    </mapping>
+  </quick_reference>
+</mode_selection_guide>
