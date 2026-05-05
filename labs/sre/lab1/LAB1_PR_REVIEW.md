@@ -17,7 +17,7 @@
 
 ## Overview of Lab 1
 
-You'll build a working pipeline stage with a plain prompt, see the limits of that, and then crystallize the behavior you want into a reusable Bob custom mode.
+You'll build a working pipeline stage that can be analyzed with the behavior you want in a reusable Bob custom mode.
 
 ### What you'll build in Lab 1
 
