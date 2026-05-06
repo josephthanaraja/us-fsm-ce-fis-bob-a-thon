@@ -106,38 +106,6 @@ spec:
         //    Jira via the Jira MCP server.
         //    See labs/LAB5_DCR_REPORTING.md.
 
-
-      stage('MCP Expansion Test') {
-          steps {
-              container('bob') {
-                  sh '''
-                      set -x
-                      rm -f /workspace/mcp-test-output.txt
-
-                      echo "=== Attempt 1: bob mcp --help (discover subcommands) ==="
-                      bob mcp --help || true
-
-                      echo "=== Attempt 2: bob mcp ==="
-                      bob mcp || true
-
-                      echo "=== Attempt 3: bob mcp list ==="
-                      bob mcp list || true
-
-                      echo "=== Attempt 4: one-shot prompt (forces full Bob init) ==="
-                      bob "say hi" --chat-mode ask --max-coins 1 -y --hide-intermediary-output || true
-
-                      echo "=== Marker file check ==="
-                      if [ -f /workspace/mcp-test-output.txt ]; then
-                          echo "FOUND MARKER FILE:"
-                          cat /workspace/mcp-test-output.txt
-                      else
-                          echo "(no marker file — MCP server was never spawned by any of the attempts above)"
-                      fi
-                  '''
-              }
-          }
-      }
-    }
     post {
         always {
             echo "=== Pipeline Complete ==="
