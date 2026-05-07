@@ -20,7 +20,7 @@
 
 ## Overview of Lab 5
 
-Lab 5 is the most involved lab in the workshop. You'll do three things at once: generate a **Deployment Change Request (DCR)** report from the branch, wire **Bob up to a Jira MCP server** so it can act on that report, and add a `DCR` stage to your Jenkinsfile that ties them together.
+You'll do three things in Lab 5: generate a **Deployment Change Request (DCR)** report from the branch, wire **Bob up to a Jira MCP server** so it can act on that report, and add a `DCR` stage to your Jenkinsfile that ties them together.
 
 Up to this point, every Bob mode you've created has been a **read-only analyst** — Bob looks at code/tests/diffs and writes a summary. In this lab Bob actually **does something with an external system**. The mechanism is [MCP (Model Context Protocol)](https://modelcontextprotocol.io): Bob talks to a Jira server through a small adapter process declared in `.bob/mcp.json`, and the custom mode you write tells Bob which Jira tools it's allowed to call.
 
@@ -56,8 +56,6 @@ By the end, every push produces a structured DCR in Jenkins **and** a fresh Jira
 
 `.bob/mcp.json` currently exists with an empty `mcpServers` object. Bob loads this file from the workspace exactly the same way it loads `custom_modes.yaml` — fresh on every pipeline run, no rebuild required. Adding a server here is purely a content change on your branch.
 
-You may already have a Jira MCP server configured for your IDE in your personal settings — most participants do, and it usually looks like this:
-
 ```json
 "atlassian": {
   "command": "uvx",
@@ -72,156 +70,73 @@ You may already have a Jira MCP server configured for your IDE in your personal 
 }
 ```
 
-The pipeline config is intentionally **almost identical** to the IDE config — same package, same env var names, same shape. The thing to be aware of is that Bob CLI sometimes needs a fully-qualified path to the launcher (`uvx`, `npx`, etc.) when the IDE config can rely on PATH resolution. In our pod the bob image installs `uv` to a known path, so `"command": "uvx"` works without a full path — but if you ever see `command not found` errors on a different cluster, this is the first thing to fix.
-
 ### Key characteristics of this MCP registration:
 
 - **Server name**: `atlassian` (this is the string the mode's `alwaysAllow` list and any explicit `mcp__atlassian__*` tool calls reference — pick it carefully, renaming later means touching multiple files)
 - **Transport**: `stdio` (the default — `uvx` launches the server as a subprocess of bob)
-- **Credentials**: Pulled from the bob container's environment, **not** baked into `mcp.json`. The `${VAR}` syntax means Bob expands the value at startup from whatever is set in the pod
+- **Credentials**: Pulled from the Bob container's environment, **not** baked into `mcp.json`.
 - **`disabled: false`**: explicit because the file is committed to git and a future maintainer reading it shouldn't have to guess
-- **`alwaysAllow` list**: kept short and scoped to what this lab actually does — one create call plus a couple of read calls for sanity checks. Pipeline modes shouldn't be transitioning issues, deleting things, or commenting in bulk without an explicit prompt — that's a footgun in CI
+- **`alwaysAllow` list**: By default, Bob requires human approval for all MCP tool calls. When we run Bob on a remote cluster, we aren't able to provide approval to Bob. Anything not in `alwaysAllow` will require the model's tool call to surface a prompt that nobody is around to answer in a CI run, so the Jira write effectively no-ops — which is sometimes what you want. Treat this list as the contract.
 
-### Edit `.bob/mcp.json` directly
-
-Open the file (it's currently `{"mcpServers":{}}`) and replace it with:
-
-```json
-{
-  "mcpServers": {
-    "atlassian": {
-      "command": "uvx",
-      "args": ["mcp-atlassian"],
-      "env": {
-        "JIRA_URL": "${JIRA_URL}",
-        "JIRA_USERNAME": "${JIRA_USERNAME}",
-        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
-      },
-      "disabled": false,
-      "alwaysAllow": [
-        "jira_create_issue",
-        "jira_get_issue",
-        "jira_get_all_projects"
-      ]
-    }
-  }
-}
-```
-
-> **Why such a short `alwaysAllow` list?** Anything in this list runs **without confirmation** in the pipeline pod. `jira_create_issue` is the only mutation we need for this lab — it's how the DCR lands in Jira. `jira_get_all_projects` lets the mode confirm `JIRA_PROJECT` actually exists before trying to create against it (a clearer error than "400 Bad Request"). `jira_get_issue` lets the mode optionally re-fetch the freshly-created ticket so it can echo the new key/URL into the Jenkins console. **Avoid** putting `jira_transition_issue`, `jira_update_issue`, `jira_delete_issue`, or anything that can move or remove tickets in here without thinking hard about blast radius. Anything not in `alwaysAllow` will require the model's tool call to surface a prompt that nobody is around to answer in a CI run, so the Jira write effectively no-ops — which is sometimes what you want. Treat this list as the contract.
-
-> **Why no `cwd` field like the screenshot in the spec docs?** The IBM `ibmi-mcp-server` example sets a fully-qualified `cwd` because it reads tool definitions from a local path on the user's laptop. `mcp-atlassian` is self-contained — it talks to the Jira REST API and needs no project-local files. Skip `cwd` here; adding it just makes the config brittle when the workspace path changes.
-
-No push yet — nothing reads `mcp.json` until a mode declares it can use MCP.
+Open the file (it's currently `{"mcpServers":{}}`) and replace it with the above MCP server definition.
 
 ---
 
 ## Part 2 — Create the `pipeline-dcr-jira-reporter` custom mode
 
-The MCP registration is just plumbing. The **behavior** comes from a custom mode that (a) knows how to assemble a DCR from pipeline outputs and (b) is allowed to talk to the Jira MCP server.
+The MCP registration is just plumbing. The **behavior** comes from a custom mode that knows how to assemble a DCR from pipeline outputs and is allowed to talk to the Jira MCP server.
 
-### Key characteristics of this mode:
+Start a new task and switch to **Mode Writer** mode. The prompt below is a starter — read through it to understand what we are trying to add. Anything you want every DCR to follow (section structure, ticket title format, labels, what to do when Jira is down) belongs in this prompt rather than the per-stage call.
 
-- **Purpose**: Generate a Deployment Change Request from the branch's commits, diff, test results, and earlier Bob analyses, then file that report as a new Jira ticket
-- **Permissions**: `read` + `mcp` (no `edit` — the mode shouldn't be modifying source code; the DCR file itself is written by the pipeline stage with `writeFile`)
-- **MCP scope**: Only the `atlassian` server, only the tools listed in `alwaysAllow`. The mode should **never** invent tool calls outside that list
-- **Output format**: Plain markdown DCR with a fixed section structure (Summary, Changes, Risk, Test Results, Rollback Plan, Reviewer Notes) so the artifact is consistent build-to-build and easy for downstream tooling to parse
-- **Jira behavior**: Always create a new ticket in the project named by `JIRA_PROJECT` (read from `dcr-context.txt`). One ticket per build — no commenting, no looking for prior tickets. The ticket title and labels follow a strict convention so 5 students sharing one Jira project can find their own tickets at a glance
-- **No IDE restart needed**: pipeline modes are loaded fresh from the workspace on each run
-
-Start a new task and switch to the built-in **Mode Writer** mode. Paste this as a starting prompt, or write your own:
+The `inputs` section is the list of files that the mode will use to generate the report, they are defined in the pipeline stage in Part 4 of this lab. 
 
 ```
-Write me a custom mode called pipeline-dcr-jira-reporter. The slug should be exactly: pipeline-dcr-jira-reporter.
+Write a custom mode with slug `pipeline-dcr-jira-reporter`. Append it to @.bob/custom_modes.yaml — don't overwrite anything.
 
-The mode's job is to generate a Deployment Change Request (DCR) for a Jenkins pipeline run and then file that report as a brand-new Jira ticket via the atlassian MCP server.
+Job: generate a Deployment Change Request (DCR) for the branch and file it as a new Jira ticket via the `atlassian` MCP server.
 
-Inputs the mode should expect to find in the workspace at invocation time:
-  - The git branch's commit history and diff (the pipeline stage will pre-compute these into files: dcr-commits.txt and dcr-diffstat.txt)
-  - bob-pr-review.md (from the Lab 1 PR Review stage), if present
-  - bob-test-analysis.md (from the Lab 2 Unit Tests stage), if present
-  - A short context file (dcr-context.txt) the pipeline writes containing three KEY=VALUE lines:
-      BUILD_NUMBER=<jenkins build number>
-      BRANCH=<branch name, e.g. user1-labs>
-      JIRA_PROJECT=<the project key to create the ticket in, e.g. KAN>
+Inputs (relative paths in the workspace):
+  - dcr-commits.txt, dcr-diffstat.txt — git material the pipeline pre-computes
+  - dcr-context.txt — three KEY=VALUE lines: BUILD_NUMBER, BRANCH, JIRA_PROJECT
+  - bob-pr-review.md, bob-test-analysis.md — earlier-stage analyses, if present
 
 Output:
-  1. Write a markdown DCR to deployment-change-request.md with these sections (in this order):
-     - Summary — one paragraph, what is being deployed and why
-     - Changes — bullet list grouped by area (api, db, config, infra, deps)
-     - Risk Assessment — high/medium/low with rationale, pulling from bob-pr-review.md if it exists
-     - Test Results — pass/fail summary, pulling from bob-test-analysis.md if it exists
-     - Rollback Plan — concrete steps, not "revert the commit"
-     - Reviewer Notes — what the reviewer should look at first
-  2. After writing the file, file the DCR as a new Jira ticket:
-     - Use jira_create_issue against the project named by JIRA_PROJECT in dcr-context.txt
-     - Issue type: Task
-     - Summary (title): exactly "DCR: <BRANCH> build #<BUILD_NUMBER>" (substitute the values from dcr-context.txt)
-     - Description: the full contents of deployment-change-request.md
-     - Labels: ["bob-dcr", "<BRANCH>"] — the branch name as a label is how students filter the shared board to just their own tickets. If the branch name contains characters Jira labels don't allow (spaces, slashes), sanitize by replacing them with hyphens
-     - After create, log the new ticket key and URL to the console so it's easy to find from the Jenkins build page
+  1. Produce a markdown DCR with H2 sections in this order: Summary, Changes, Risk Assessment, Test Results, Rollback Plan, Reviewer Notes. Plain markdown, no tables, under 200 lines.
+  2. File it as a Jira ticket via `jira_create_issue` against the project named by JIRA_PROJECT:
+       - Issue type: Task
+       - Title: exactly `DCR: <BRANCH> build #<BUILD_NUMBER>`
+       - Description: the full DCR markdown
+       - Labels: ["bob-dcr", "<BRANCH>"] (sanitize spaces or slashes in the branch name to hyphens)
+     Create exactly once. If Jira is unreachable or the call fails, log clearly and continue — the markdown is the source of truth.
+  3. Return the DCR markdown plus a one-line "created KAN-N" or "Jira create failed: ..." status so the pipeline stage can echo and archive it.
 
 Tool groups:
   - read
-  - mcp (restricted to the atlassian server, with the alwaysAllow tools defined in .bob/mcp.json: jira_create_issue, jira_get_issue, jira_get_all_projects)
-
-Output constraints:
-  - Plain markdown, readable in Jenkins console as plain text (no HTML, no fancy tables)
-  - Section headers are H2 (##) so the document parses cleanly
-  - Total document length capped — this is a release artifact, not a novel. Aim for under 200 lines
-
-Add a rules directory for this mode with XML files describing:
-  - The required DCR section structure
-  - The exact ticket title and label format (this is a hard contract — Part 5 of the lab depends on the per-branch label being present)
-  - When to call which Jira MCP tool (jira_get_all_projects once to confirm JIRA_PROJECT exists; jira_create_issue exactly once; optionally jira_get_issue on the returned key to confirm and log the URL)
-  - Defensive behavior when the MCP server is unreachable or jira_create_issue fails: write the DCR to disk anyway and log the Jira failure clearly, do not fail the pipeline. The DCR artifact must always be archived even if Jira is down.
-
-Append the new mode to the bottom of the existing @.bob/custom_modes.yaml file — do not overwrite anything.
+  - mcp (scoped to the `atlassian` server, restricted to the alwaysAllow tools defined in .bob/mcp.json)
 ```
 
-Watch Bob work and provide input where it helps. Pay particular attention to three things in what Mode Writer produces:
+The title and label format is a hard contract — Part 5 (if you do it) uses the per-branch label to find prior tickets.
 
-1. **The `mcp` group declaration** — it should reference the `atlassian` server explicitly and not grant blanket MCP access. If the generated YAML has `groups: [read, mcp]` without scoping, edit it to scope down before saving.
-2. **The title and label format** — this is a hard contract. Title `DCR: <BRANCH> build #<N>` and labels `["bob-dcr", "<BRANCH>"]` are how students find their own tickets on a shared board, and how Part 5 (if you do it) finds prior tickets. Don't let Mode Writer get creative here.
-3. **The "create exactly once" rule** — the mode should not loop, retry, or create a second ticket if the first call partially succeeds. If create fails, log and move on; the DCR file on disk is the source of truth.
+Mode Writer may not produce rules files by default. If you want stricter guarantees (the exact DCR section structure, the "create exactly once" rule, defensive behavior on Jira failures), ask Mode Writer in a follow-up to expand the mode into rules files.
 
-Since you won't be invoking this mode from the IDE, **no need to restart Bob IDE**. The pipeline pod reads `.bob/custom_modes.yaml` and `.bob/mcp.json` together at the start of each build.
+Since the mode is invoked from the pipeline, **no Bob IDE restart needed** — `.bob/custom_modes.yaml` and `.bob/mcp.json` are read fresh from the workspace on every build.
 
 ---
 
 ## Part 3 — Add the `DCR` stage to your Jenkinsfile
 
-Ensure you have restarted Bob IDE so the `jenkins-bob-integration` mode from Lab 1 still appears in your dropdown.
+Start a new task and switch to the **Jenkins Bob Integration** mode (same one you used in Labs 1 and 2). Paste the following prompt:
 
-Start a new task and switch to the **Jenkins Bob Integration** mode. Write your own prompt that asks Bob to do all of the following:
+```
+Add a "DCR" stage to @Jenkinsfile right after the Unit Tests stage. It should be the last stage before the global post block. The stage should:
 
-- Add a new stage called **`DCR`** to `@Jenkinsfile` that runs **after** `Unit Tests` (so it has access to the test analysis artifact) and is the **last** stage before the global `post` block.
-- Before any git command in the stage, configure git's `safe.directory` for the workspace (same `git config --global --add safe.directory "$WORKSPACE"` line as Lab 1).
-- Gather the change material into the workspace as **plain relative-path files** Bob can read:
-  - `dcr-commits.txt` — output of `git log origin/main..HEAD --pretty=format:'%h %s'`
-  - `dcr-diffstat.txt` — output of `git diff origin/main...HEAD --stat`
-  - `dcr-context.txt` — a short text file containing exactly three lines:
-    ```
-    BUILD_NUMBER=${BUILD_NUMBER}
-    BRANCH=${BRANCH_NAME}
-    JIRA_PROJECT=${JIRA_PROJECT}
-    ```
-    `JIRA_PROJECT` comes from the env var the instructor injected alongside `JIRA_URL` / `JIRA_USERNAME` / `JIRA_API_TOKEN`. If `BRANCH_NAME` isn't set in your Jenkins setup, use whatever env var holds the branch (e.g., `GIT_BRANCH` with the `origin/` prefix stripped).
-- Make all three of those `sh` invocations resilient — fall back to empty files rather than failing the stage if the git command produces no output (same pattern as Lab 1's diff handling).
-- Call the `askBob` helper with the mode `pipeline-dcr-jira-reporter` and a short prompt instructing Bob to read `dcr-commits.txt`, `dcr-diffstat.txt`, `dcr-context.txt`, and (if present) `bob-pr-review.md` and `bob-test-analysis.md`, then produce the DCR per the mode's rules and file the new Jira ticket.
-- Capture `askBob`'s return value into a local variable.
-- Print the analysis between banner lines in the Jenkins console (same banner pattern as Lab 1).
-- The mode itself writes `deployment-change-request.md` to the workspace. Archive that file as a build artifact in the stage's `post.always` block. Use `allowEmptyArchive: true` so a dead MCP server doesn't break the artifact step.
-- Wrap the whole Bob invocation in `catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE')` so a Jira outage marks the build UNSTABLE rather than killing it. The DCR file should still be archived even in the UNSTABLE case.
-
-Watch Bob work. Before pushing, read the diff and sanity-check:
-
-- The stage sits **after** `Unit Tests` and **before** the closing `post` block
-- `askBob` is called with the exact mode slug `pipeline-dcr-jira-reporter`
-- The three input files use **relative** paths, not `/workspace/...` — same trap as Lab 1
-- `dcr-context.txt` contains all three keys (`BUILD_NUMBER`, `BRANCH`, `JIRA_PROJECT`) and `JIRA_PROJECT` is non-empty — an empty value will land you a "create issue with no project" error from the MCP server
-- `archiveArtifacts` references `deployment-change-request.md`, not whatever the mode's intermediate output happens to be called
-- `catchError` is in place — you don't want a MCP/Jira hiccup turning the build red after the actual code already passed every gate
+- Gather change material into three relative-path files in the workspace:
+    - dcr-commits.txt — output of `git log origin/main..HEAD --pretty=format:'%h %s'`
+    - dcr-diffstat.txt — output of `git diff origin/main...HEAD --stat`
+    - dcr-context.txt — exactly three lines: `BUILD_NUMBER=${BUILD_NUMBER}`, `BRANCH=${BRANCH_NAME}`, `JIRA_PROJECT=${JIRA_PROJECT}`
+- Call askBob with the `pipeline-dcr-jira-reporter` mode and a short prompt asking Bob to read those three files (plus `bob-pr-review.md` and `bob-test-analysis.md` if present) and produce the DCR per the mode's rules
+- Save askBob's return value to deployment-change-request.md and archive it as a build artifact
+```
 
 ---
 
