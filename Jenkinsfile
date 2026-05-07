@@ -136,6 +136,37 @@ spec:
         //    Add a DCR generation stage; Bob pushes the result to
         //    Jira via the Jira MCP server.
         //    See labs/LAB5_DCR_REPORTING.md.
+
+        stage('Jira MCP Smoke Test') {
+            steps {
+                container('bob') {
+                    sh '''
+                        set -e
+                        set -x
+
+                        # Fail fast if any required JIRA env var is missing.
+                        : "${JIRA_URL:?JIRA_URL not set}"
+                        : "${JIRA_USERNAME:?JIRA_USERNAME not set}"
+                        : "${JIRA_API_TOKEN:?JIRA_API_TOKEN not set}"
+                        : "${JIRA_PROJECT:?JIRA_PROJECT not set}"
+
+                        # Echo non-secret values so we can confirm routing.
+                        echo "JIRA_URL=$JIRA_URL"
+                        echo "JIRA_USERNAME=$JIRA_USERNAME"
+                        echo "JIRA_PROJECT=$JIRA_PROJECT"
+
+                        TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                        PROMPT="Use the atlassian MCP server. Call jira_create_issue exactly once to create a Task in project ${JIRA_PROJECT} with summary 'Bob MCP smoke test ${TIMESTAMP}' and description 'Test ticket from Jenkins to verify MCP wiring.' Then print only the new issue key on a single line."
+
+                        bob "$PROMPT" \
+                            --chat-mode ask \
+                            --max-coins 5 \
+                            -y \
+                            --hide-intermediary-output
+                    '''
+                }
+            }
+        }
     }
 
     post {
