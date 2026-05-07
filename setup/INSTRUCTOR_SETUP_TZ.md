@@ -353,7 +353,7 @@ Jenkins starts with the Kubernetes plugin installed but no Cloud configured (the
 
     ```bash
     cd setup/bob-cli
-    podman build -t bob-cli:latest .
+    podman build --platform linux/amd64 -t bob-cli:latest .
     cd -
     ```
 
