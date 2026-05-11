@@ -306,7 +306,7 @@ Produce a comprehensive markdown report.
 """
                         
                         // Ask Bob to analyze the lint results
-                        def analysis = askBob(prompt, 'pipeline-lint-analyzer')
+                        def analysis = askBob(prompt, 'solution-pipeline-lint-analyzer')
                         
                         echo ''
                         echo '  ✅ Lint analysis complete'
@@ -328,7 +328,7 @@ The comment should:
 Keep it actionable and focused on what developers need to fix first.
 """
                         
-                        def prComment = askBob(prCommentPrompt, 'pipeline-lint-analyzer')
+                        def prComment = askBob(prCommentPrompt, 'solution-pipeline-lint-analyzer')
                         
                         // Save PR comment
                         writeFile file: 'bob-lint-pr-comment.md', text: prComment
