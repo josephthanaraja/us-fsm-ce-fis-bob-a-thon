@@ -545,12 +545,47 @@ Show me the description and the latest 3 comments on issue PROJ-123.
 - Tools in `alwaysAllow` (e.g. `jira_search`) run without an approval prompt
 - Tools NOT in `alwaysAllow` (e.g. transitioning a ticket) prompt you for one-time approval
 
+### Step 6: Create a Ticket from the IDE
+
+Reading tickets is half the picture — Bob can also **create** them. You'll use this in the afternoon: the ticket you create here is the same one the App team will pull down and implement in Lab 1.
+
+Still in **Advanced** mode, paste:
+
+```text
+Use the atlassian MCP server to create a new Jira issue with these details:
+
+Summary: Add refund endpoint to order-service
+
+Description:
+As a customer support agent, I want to issue refunds on existing orders so that customers can be reimbursed for returned products.
+
+Acceptance criteria:
+- POST /api/orders/{id}/refund with body { "amount": 29.99, "reason": "..." }
+- Returns 200 with the updated order
+- Order status changes to "REFUNDED"
+- Refund amount and reason stored on the order
+- Cannot refund an order that is already in REFUNDED status
+
+Issue type: Story
+
+Tell me the ticket key Jira assigned.
+```
+
+**What's Happening:**
+
+- Bob picks the `jira_create_issue` tool from the Atlassian server
+- Because `jira_create_issue` is **not** in your `alwaysAllow` list, Bob asks for approval before calling it — approve it for this one call
+- Jira creates the ticket and Bob reports back the key it was assigned (something like `OS-7`, `KAN-12`, etc.)
+
+> 📝 **Write down the ticket key.** The App team will need it to start Lab 1 this afternoon. If you forget, you can always run `jira_search` to find it again.
+
 ### What You've Practiced
 
 - ✅ Registered a real MCP server in project-level config
 - ✅ Wired credentials through `.env` substitution instead of inline values
 - ✅ Used `alwaysAllow` to scope which tools run without approval
 - ✅ Invoked external service tools from Advanced mode
+- ✅ Created a real Jira ticket from inside Bob — the same one you'll pull down in the afternoon
 
 > 📌 **Standalone Reference:** [`intro-labs/jira-mcp/jira-mcp-setup.md`](jira-mcp/jira-mcp-setup.md) — the same walkthrough as a standalone doc with deeper troubleshooting.
 
