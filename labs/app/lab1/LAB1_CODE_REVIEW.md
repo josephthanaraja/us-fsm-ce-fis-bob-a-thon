@@ -7,7 +7,7 @@
   - [What you'll build in Lab 1](#what-youll-build-in-lab-1)
   - [What you'll reuse from the repo](#what-youll-reuse-from-the-repo)
 - [Before you start](#before-you-start)
-- [Part 1 — Capture your team's standards as Bob rules](#part-1--capture-your-teams-standards-as-bob-rules)
+- [Part 1 — Branch off main and capture team standards as Bob rules](#part-1--branch-off-main-and-capture-team-standards-as-bob-rules)
 - [Part 2 — Pull the ticket, move it In Progress, build the feature](#part-2--pull-the-ticket-move-it-in-progress-build-the-feature)
 - [Part 3 — Pre-commit gauntlet, lap 1: built-in `/review`](#part-3--pre-commit-gauntlet-lap-1-built-in-review)
 - [Part 4 — Pre-commit gauntlet, lap 2: standards-aware review with a custom mode](#part-4--pre-commit-gauntlet-lap-2-standards-aware-review-with-a-custom-mode)
@@ -51,16 +51,26 @@ You'll pull the ticket down with the Jira MCP server you configured this morning
 
 ## Before you start
 
-- [ ] You're on a working branch, not `main` (e.g. `lab1-refunds`)
 - [ ] `gh auth status` shows you're logged into GitHub
 - [ ] `mvn test` passes from `order-service/`
 - [ ] You have the **ticket key** from the refund ticket you created in the morning intro lab (the one Jira assigned when Bob created it — e.g. `OS-7`, `REF-12`, etc.). If you didn't write it down, jump back to Settings → MCP → atlassian, switch to Advanced mode, and ask: `Use jira_search to find the refund ticket I created earlier.`
 
 ---
 
-## Part 1 — Capture your team's standards as Bob rules
+## Part 1 — Branch off main and capture team standards as Bob rules
 
-Real teams have coding standards that aren't fully expressible in a linter — "don't log customer names," "every status transition emits an audit log," "money is always `BigDecimal`." A Bob rules file makes those standards visible to every mode that runs in the workspace, including `/review` and the commit-message generator. You write them once, every reviewer reads them.
+**Create your branch.** Start clean off `main` so your refund work is isolated and reviewable. From a terminal at the repo root:
+
+```bash
+git checkout main
+git pull
+git checkout -b lab1-refunds
+git push -u origin lab1-refunds
+```
+
+You'll commit to this branch in Part 6 and open the PR in Part 7.
+
+**Capture your team's standards.** Real teams have coding standards that aren't fully expressible in a linter — "don't log customer names," "every status transition emits an audit log," "money is always `BigDecimal`." A Bob rules file makes those standards visible to every mode that runs in the workspace, including `/review` and the commit-message generator. You write them once, every reviewer reads them.
 
 Create `.bob/rules/coding-standards.md`:
 
@@ -195,7 +205,15 @@ This pass could surface things `/review` glossed over — missing audit log on t
 
 ## Part 5 — Pre-commit gauntlet, lap 3: security review
 
-The first two laps covered standards and quality. The third lap is about exploitable risk. The repo already includes a **🛡️🔐 Software Security Reviewer** mode (in `.bob/custom_modes.yaml`, rules in `.bob/rules-software-security-reviewer/`). Reuse it.
+The first two laps covered standards and quality. The third lap is about exploitable risk. This directory has a file called `software-security-reviewer.yaml` representing a mode.
+
+Lets import that Mode into Bob. 
+
+1. In your Bob chat window, click the setting cog at the top. 
+2. Click Modes on the left side.
+3. Find the small import button.
+4. Select the file `software-security-reviewer.yaml` from your local filesystem.
+5. Restart Bob IDE to ensure the new mode appears.
 
 In a new task, switch to **Software Security Reviewer** and paste:
 
@@ -210,67 +228,6 @@ Output the standard CRITICAL / HIGH / MEDIUM / LOW findings with code patches. S
 ```
 
 The security mode applies a different lens than laps 1 and 2 — same diff, but graded on exploitability rather than style or domain correctness. Save the markdown; you'll post it on the PR in Part 7.
-
----
-
-## Part 6 — Commit with a Bob-generated message
-
-Stage what you accepted from the three laps:
-
-```bash
-git add order-service/ .bob/
-```
-
-In the **Source Control** panel, click the **sparkle icon** next to the commit message box. Bob reads the staged diff, your branch name, and `.bob/rules/coding-standards.md` — including the commit message convention you wrote in Part 1.
-
-Expected first suggestion (something like):
-
-```
-feat(orders): [<your-ticket-key>] add refund endpoint with audit logging
-
-- POST /api/orders/{id}/refund issues a refund and transitions the order to REFUNDED
-- Validates refund amount against original order total
-- Emits audit log entry on every refund
-- Adds tests for happy path, already-refunded, and over-refund cases
-```
-
-If the first one misses something, click the sparkle again for an alternative. Edit by hand to add specifics. Then commit and push:
-
-```bash
-git push -u origin lab1-refunds
-```
-
----
-
-## Part 7 — Open the PR and post the security review
-
-In a new task in any mode, type:
-
-```
-/create-pr
-```
-
-Bob asks you to confirm the base branch (pick `main`), generates a PR title and description from the commit history and diff, and applies your project's PR template if one exists at `.github/pull_request_template.md`. Confirm and Bob creates the PR via `gh`, returning the link in chat.
-
-Now post the security review as an inline PR comment so reviewers see the full risk picture, not just the diff. Grab the PR number:
-
-```bash
-gh pr view --json number -q .number
-```
-
-Then post `bob-security-review.md` (saved in Part 5) as a comment:
-
-```bash
-gh pr comment <PR-number> --body-file bob-security-review.md
-```
-
-The PR now carries:
-
-- **What changed** — the description Bob generated from the diff and commits (`/create-pr`)
-- **How risky it is** — the security review markdown posted as a comment (Part 5 + `gh pr comment`)
-- **Which standards it follows** — the commit message convention enforced by `.bob/rules/coding-standards.md` (Part 6)
-
-That's a complete pre-merge review record, produced by one slash command, one custom mode you built, and one mode the repo provided. The same `bob-security-review.md` doubles as a wiki-ready artifact — drop it into your team wiki and it's already formatted.
 
 ---
 
