@@ -3,7 +3,7 @@
 **Duration:** ~45 minutes  
 **Level:** Intermediate to Advanced  
 **Prerequisites:** 
-- Completed Labs 1-2 (PR Review and Unit Testing)
+- Ideally completed SRE Labs 1-2 (PR Review and Unit Testing)
 - Understanding of Jenkins pipelines
 - Familiarity with the order-service application
 
@@ -56,12 +56,6 @@ Fix applied → Pipeline rerun → Hours of downtime
 Build fails → Bob analyzes → Automatic fix attempted → 
 Tests verify → Pipeline continues or reports → Minutes of recovery
 ```
-
-**Real-World Impact:**
-- 🚀 **70-90% reduction** in mean time to recovery (MTTR)
-- 💰 **Fewer context switches** for developers
-- 😊 **Improved developer experience** - fewer interruptions
-- 📈 **Higher deployment confidence** - automated safety nets
 
 ---
 
