@@ -6,6 +6,8 @@
 - Completed Lab 1: Bob Fundamentals
 - Bob application running
 - Command-line terminal access
+- `uv` installed ([install instructions](https://docs.astral.sh/uv/getting-started/installation/)) — required for the Jira MCP section
+- Jira credentials handed out by your instructor (URL, username, API token) — required for the Jira MCP section
 
 > 📌 **Documentation:** [Bob IDE](https://bob.ibm.com/docs/ide) | [BobShell](https://bob.ibm.com/docs/shell)
 
@@ -16,10 +18,11 @@
 2. [BobShell Fundamentals](#bobshell-fundamentals)
 3. [BobShell in Practice](#bobshell-in-practice)
 4. [Understanding MCP](#understanding-mcp)
-5. [Custom Modes](#custom-modes)
-6. [Practical Applications](#practical-applications)
-7. [Troubleshooting](#troubleshooting)
-8. [Key Takeaways](#key-takeaways)
+5. [Setting Up the Jira MCP Server](#setting-up-the-jira-mcp-server)
+6. [Custom Modes](#custom-modes)
+7. [Practical Applications](#practical-applications)
+8. [Troubleshooting](#troubleshooting)
+9. [Key Takeaways](#key-takeaways)
 
 ---
 
@@ -420,6 +423,162 @@ bob "Review the code changes in this PR and check for: security issues, performa
 ```
 
 > 📌 **Learn More:** [MCP Documentation](https://bob.ibm.com/docs/ide/configuration/mcp/understanding-mcp)
+
+---
+
+## Setting Up the Jira MCP Server
+
+Time to put MCP into practice. You'll configure the **Atlassian MCP server** so Bob can read and act on Jira tickets directly from your IDE — same registration mechanic you just learned, applied to a real-world service.
+
+> **🎯 Why This Matters**
+>
+> Most engineering teams already track work in Jira. Wiring Bob into it means you can search tickets, summarize an issue, or comment on a story without leaving your IDE. The pattern you use here applies to any MCP server — GitHub, Confluence, ServiceNow, Slack, internal APIs — they're all configured the same way.
+
+### Step 1: Log In to Jira
+
+Before wiring Bob into Jira, confirm you can reach Jira yourself with the credentials your instructor handed out:
+
+1. Open your Jira URL in a browser (the value labeled **JIRA_URL** on your credential sheet)
+2. Sign in with your Jira **username** (your workshop email) and password
+3. Note your **project key** — it's the prefix in any issue key (e.g. `KAN-1` → project key is `KAN`). You'll need it when Bob creates a ticket later in Step 7.
+
+If you can't log in, ask your instructor before continuing — every step below assumes a working Jira session and a known API token.
+
+### Step 2: Open the Project MCP Config
+
+This workshop uses **project-level** MCP config so the server registration is part of the repo. The file is already in place at the repo root:
+
+```
+.bob/mcp.json
+```
+
+Open it in your editor. It contains an empty `mcpServers` object:
+
+```json
+{
+    "mcpServers": {
+    }
+}
+```
+
+> 📌 **Why project-level?** Bob loads `.bob/mcp.json` from whatever workspace it has open. Committing it to the repo means every Bob instance — your IDE locally and the bob-cli container in the Jenkins pipeline (SRE track) — picks up the same server registrations from `git checkout`. No one has to hand-edit a global config.
+
+### Step 3: Add the Atlassian Server Block
+
+Replace the contents with:
+
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; source .env; set +a; exec uvx mcp-atlassian"
+      ],
+      "disabled": false,
+      "alwaysAllow": [
+        "jira_get_issue",
+        "jira_search",
+        "jira_add_comment"
+      ]
+    }
+  }
+}
+```
+
+**What's Happening:**
+
+- **`command: "bash"`** with the `-c` script — `bash` runs as a thin launcher. It enables auto-export (`set -a`), sources `.env` from the workspace root, turns auto-export off (`set +a`), then `exec`s `uvx mcp-atlassian` so the Jira credentials land in the MCP server's environment.
+- **`uvx mcp-atlassian`** — `uvx` is `uv`'s "run a published PyPI tool" mode. It pulls `mcp-atlassian` from PyPI on first use and runs it as a subprocess.
+- **No `env` block, no `${VAR}` substitution** — credentials never appear in this committed file. The bash launcher sources them from `.env` at MCP-server launch time.
+- **`alwaysAllow`** — Jira tools Bob can call without prompting for approval each time. Starting with three read/comment-leaning tools; destructive ones (transition, delete) stay off this list.
+
+Save the file.
+
+### Step 4: Provide Your Credentials via `.env`
+
+The bash launcher in Step 3 sources `.env` from the repo root at startup, so the credentials live there. A `.env.example` template ships at the repo root — copy it:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and replace the placeholders with the credentials your instructor handed out:
+
+```bash
+JIRA_URL=https://your-org.atlassian.net
+JIRA_USERNAME=your.email@example.com
+JIRA_API_TOKEN=your-token-here
+```
+
+`.env` is gitignored at the repo root, so your token won't be committed.
+
+> ⚠️ **Security Reminder:** API tokens are secrets. Don't paste yours into chat, screenshots, or commits. If exposed, rotate it at id.atlassian.com.
+
+### Step 5: Restart Bob
+
+Bob reads `.bob/mcp.json` and `.env` once at startup. Quit Bob completely and reopen the workspace.
+
+**Verify the server started:**
+
+1. Open Settings → MCP
+2. Look for `atlassian` in the server list
+3. Status should show **Connected** (green)
+
+If you see **Failed**, double-check that `.env` is at the repo root and that all three values are filled in with no quotes or extra spaces.
+
+### Step 6: Use the Jira Tools in Advanced Mode
+
+Switch to **Advanced mode** (MCP tools aren't available in Plan, Code, or Ask).
+
+**Try this prompt:**
+
+```text
+List the MCP tools you have access to from the atlassian server.
+```
+
+### Step 7: Create a Ticket from the IDE
+
+Bob can **create** tickets from within the IDE. The ticket you create here is the same one the App team will pull down and implement in their Lab 1.
+
+Still in **Advanced** mode, paste:
+
+```text
+Use the atlassian MCP server to create a new Jira issue with these details:
+
+Summary: Add refund endpoint to order-service
+
+Description:
+As a customer support agent, I want to issue refunds on existing orders so that customers can be reimbursed for returned products.
+
+Acceptance criteria:
+- POST /api/orders/{id}/refund with body { "amount": 29.99, "reason": "..." }
+- Returns 200 with the updated order
+- Order status changes to "REFUNDED"
+- Refund amount and reason stored on the order
+- Cannot refund an order that is already in REFUNDED status
+
+Issue type: Story
+
+Tell me the ticket key Jira assigned.
+```
+
+**What's Happening:**
+
+- Bob picks the `jira_create_issue` tool from the Atlassian server
+- Because `jira_create_issue` is **not** in your `alwaysAllow` list, Bob asks for approval before calling it — approve it for this one call
+- Jira creates the ticket and Bob reports back the key it was assigned (something like `OS-7`, `KAN-12`, etc.)
+
+> 📝 **Write down the ticket key.** The App team will need it to start Lab 1 this afternoon. If you forget, you can always run `jira_search` to find it again.
+
+### What You've Practiced
+
+- ✅ Registered a real MCP server in project-level config
+- ✅ Sourced credentials from `.env` via a bash launcher instead of inline values
+- ✅ Used `alwaysAllow` to scope which tools run without approval
+- ✅ Invoked external service tools from Advanced mode
+- ✅ Created a real Jira ticket from inside Bob — the same one you'll pull down in the afternoon
 
 ---
 
