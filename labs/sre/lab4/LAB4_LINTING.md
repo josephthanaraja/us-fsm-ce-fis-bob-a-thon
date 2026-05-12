@@ -34,7 +34,6 @@ This lab intentionally makes use of slightly flawed deployment files with predic
 - anticipate likely pipeline findings before Jenkins runs
 - recommend fixes
 - produce a consolidated lint report
-- prepare a PR-comment-ready summary
 
 ### What you'll build
 
@@ -42,9 +41,9 @@ By the end of this lab, you will use Bob to not just interact with linters — b
 
 - **A Bob mode for lint reporting** (`pipeline-lint-analyzer`) — a read-only mode that reads the raw output from multiple linters and turns it into a Jenkins-friendly report.
 
-- **A new set of pipeline stages** — one stage runs the linters (including Checkstyle), one stage asks Bob to summarize the results, and one stage posts a condensed comment to the PR.
+- **A new set of pipeline stages** — one stage runs the linters (including Checkstyle), one stage asks Bob to summarize the results.
 
-- **A final Bob-enriched lint report** — archived in Jenkins as a build artifact and summarized in a PR comment.
+- **A final Bob-enriched lint report** — archived in Jenkins as a build artifact and summarized in a comment artifact.
 
 **Key Concepts** you will learn:
 
@@ -180,6 +179,9 @@ Now, we will create a reusable Bob mode that specializes in lint analysis, insig
     Tool groups: read only.
     ```
 
+    > [!TIP]
+    > This prompt is a good starting point that has been tested with the pipeline, but feel free to extend the prompt above a bit with your own preferences.
+
 1. In Part 1 of this lab, you ran Checkstyle manually and saw how Bob can interpret its findings. Now we'll automate this in the pipeline along with other linters. So next, lets add the linting and analysis stages to the pipeline.
 
 1. Start a new task and switch to the provided **Jenkins Pipeline Integration** mode.
@@ -216,6 +218,9 @@ Now, we will create a reusable Bob mode that specializes in lint analysis, insig
     - Print a short summary to the console
     ```
 
+    > [!TIP]
+    > We are asking Bob to create a "PR comment", which is a concise summary of the lint report. Though not currently implemented, this comment could be attached to a PR and displayed to the reviewer.
+
 1. A couple of things to note about how we are asking Bob to build this into our pipeline:
 
     - We are asking Bob to split the work into the following stages:
@@ -236,7 +241,6 @@ Now, we will create a reusable Bob mode that specializes in lint analysis, insig
       - running the tools
       - saving files
       - archiving artifacts
-      - posting the PR comment
     - Bob takes on the following responsibilities:
       - grouping findings
       - prioritizing fixes
@@ -294,7 +298,6 @@ If you have completed the lab and want to explore different linting challenges, 
 1. Archive lint results from multiple builds
 2. Create a Bob mode that compares current vs. previous results
 3. Generate a trend report showing improvement or regression
-4. Post the trend to the PR comment
 
 ### Challenge 4: Auto-fix Simple Issues
 
