@@ -247,7 +247,7 @@ Let's practice the approval workflow:
 **Step 1: Simple File Creation**
 In Code mode, ask Bob:
 ```text
-Create a file called hello.txt with the text "Hello from Bob"
+First, create a directory at labs/intro-labs/sandbox/ — we'll put all scratch files from this lab there to keep the rest of the repo clean. Then create a file at labs/intro-labs/sandbox/hello.txt with the text "Hello from Bob".
 ```
 
 **Watch for:**
@@ -316,7 +316,7 @@ I want to add a user profile feature to my application. Help me plan:
 
 **Step 1: Create a configuration file**
 ```text
-Create a config.json file with basic application settings:
+Create labs/intro-labs/sandbox/config.json with basic application settings:
 - app name
 - version
 - environment (development)
@@ -325,13 +325,13 @@ Keep it simple.
 
 **Step 2: Create a utility function**
 ```text
-Create a utils file in [your preferred language] with a function that formats dates.
+Create a utils file inside labs/intro-labs/sandbox/ (in [your preferred language]) with a function that formats dates.
 Keep it minimal and well-commented.
 ```
 
 **Step 3: Connect related files**
 ```text
-Create a main file that imports and uses the utility function from utils.
+Create a main file inside labs/intro-labs/sandbox/ that imports and uses the utility function from the utils file in the same directory.
 ```
 
 ### Exercise 3: Understanding Code
@@ -339,7 +339,7 @@ Create a main file that imports and uses the utility function from utils.
 **Switch to Ask Mode** and try:
 
 ```text
-Explain what each file does in simple terms:
+Explain what each file in labs/intro-labs/sandbox/ does in simple terms:
 - config.json
 - utils file
 - main file
@@ -350,7 +350,7 @@ Explain what each file does in simple terms:
 **Back to Code Mode:**
 
 ```text
-Add error handling to the date formatting function in utils.
+Add error handling to the date formatting function in labs/intro-labs/sandbox/utils.
 Include a comment explaining why error handling is important here.
 ```
 

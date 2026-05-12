@@ -137,8 +137,9 @@ Execute single commands for automation and scripting:
 **Create a test file first:**
 
 ```bash
-# Create a simple Python file
-cat > calculator.py << 'EOF'
+# Create the sandbox dir (if Lab 1 didn't already) and a simple Python file inside it
+mkdir -p labs/intro-labs/sandbox
+cat > labs/intro-labs/sandbox/calculator.py << 'EOF'
 def add(a, b):
     return a + b
 
@@ -151,13 +152,13 @@ EOF
 
 ```bash
 # Explain code in a file
-bob "Explain what calculator.py does"
+bob "Explain what labs/intro-labs/sandbox/calculator.py does"
 
 # Review code
-bob "Review calculator.py and suggest improvements"
+bob "Review labs/intro-labs/sandbox/calculator.py and suggest improvements"
 
 # Generate new code (with auto-approval)
-bob "Create a Python function that calculates factorial" --yolo --hide-intermediary-output > factorial.py
+bob "Create a Python function that calculates factorial" --yolo --hide-intermediary-output > labs/intro-labs/sandbox/factorial.py
 
 # Quick questions
 bob "What is the difference between a list and a tuple in Python?"
@@ -780,6 +781,20 @@ Now that you've mastered Bob's advanced features:
 - [MCP Documentation](https://bob.ibm.com/docs/ide/configuration/mcp/understanding-mcp)
 - [Custom Modes Guide](https://bob.ibm.com/docs/ide/configuration/custom-modes)
 - [Best Practices](https://bob.ibm.com/docs/ide/getting-started/best-practices)
+
+---
+
+## Cleanup
+
+Throughout Labs 1 and 2 you created scratch files under `labs/intro-labs/sandbox/`. Now that you're done with the intro labs, clean it up so the workshop repo stays tidy for the afternoon tracks.
+
+**Switch to Code mode** and ask Bob:
+
+```text
+Delete the labs/intro-labs/sandbox/ directory and everything in it.
+```
+
+Approve the deletion when Bob prompts. Confirm the directory is gone before moving on to the App or SRE track.
 
 ---
 
