@@ -46,15 +46,16 @@ By the end, every push produces a structured DCR in Jenkins **and** a fresh Jira
 
 - [ ] Labs 1 and 2 complete (PR Review + Unit Tests stages already in your Jenkinsfile)
 - [ ] You're on your working branch (e.g. `user1-labs`)
-- [ ] **Your instructor has provisioned the Jira credential set in the `jenkins` namespace.** The `bob-cli` sidecar needs `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`, and `JIRA_PROJECT` injected as env vars (same `secretKeyRef` pattern as `BOBSHELL_API_KEY`). The first three authenticate the MCP server; the fourth tells the mode which project to file tickets in (e.g. `KAN`, the default key for Kanban-templated projects). If those env vars aren't present in the pod, the MCP server will start but every Jira call will 401, or the create call will fail because no project was specified. If you don't know whether this has been done, ask your instructor before pushing.
-
-> **Why this lab needs more environment setup than Labs 1–2.** The earlier labs only needed Bob to read files. This one needs Bob to **call out to a network service with credentials** — that's the cost of doing real work in a CI environment. Once the secret + image plumbing is in place, every future MCP server you add (GitHub, Confluence, ServiceNow, Slack…) follows the same pattern.
 
 ---
 
-## Part 1 — Register the Jira MCP server in `.bob/mcp.json`
+## Part 1 — Swap `.bob/mcp.json` to the cluster-friendly Jira registration
 
-`.bob/mcp.json` currently exists with an empty `mcpServers` object. Bob loads this file from the workspace exactly the same way it loads `custom_modes.yaml` — fresh on every pipeline run, no rebuild required. Adding a server here is purely a content change on your branch.
+You already have an `atlassian` server in `.bob/mcp.json` from the morning intro lab — the one with a `bash -c` launcher that sources `.env` from the workspace root. That works fine in your local IDE because `.env` sits next to the repo on your machine. It does **not** work in the Jenkins pipeline pod: there's no `.env` file inside the `bob-cli` container, and we don't want one — secrets in CI come from Kubernetes, not files on disk.
+
+The fix is to replace the bash launcher with a direct `uvx mcp-atlassian` invocation and let the `env` block read the credentials straight from the container's environment. The cluster has already injected `JIRA_URL`, `JIRA_USERNAME`, and `JIRA_API_TOKEN` into the `bob-cli` pod as env vars (same `secretKeyRef` pattern as `BOBSHELL_API_KEY`).
+
+Open `.bob/mcp.json` and replace your existing `atlassian` entry with this:
 
 ```json
 "atlassian": {
@@ -72,13 +73,13 @@ By the end, every push produces a structured DCR in Jenkins **and** a fresh Jira
 
 ### Key characteristics of this MCP registration:
 
-- **Server name**: `atlassian` (this is the string the mode's `alwaysAllow` list and any explicit `mcp__atlassian__*` tool calls reference — pick it carefully, renaming later means touching multiple files)
+- **Server name**: `atlassian` (same as the intro lab — the mode's `alwaysAllow` list and any explicit `mcp__atlassian__*` tool calls reference this string)
 - **Transport**: `stdio` (the default — `uvx` launches the server as a subprocess of bob)
-- **Credentials**: Pulled from the Bob container's environment, **not** baked into `mcp.json`.
+- **Credentials**: pulled from the container's environment via `${VAR}` substitution, **not** baked into `mcp.json` and **not** read from a `.env` file on disk
 - **`disabled: false`**: explicit because the file is committed to git and a future maintainer reading it shouldn't have to guess
 - **`alwaysAllow` list**: By default, Bob requires human approval for all MCP tool calls. When we run Bob on a remote cluster, we aren't able to provide approval to Bob. Anything not in `alwaysAllow` will require the model's tool call to surface a prompt that nobody is around to answer in a CI run, so the Jira write effectively no-ops — which is sometimes what you want. Treat this list as the contract.
 
-Open the file (it's currently `{"mcpServers":{}}`) and replace it with the above MCP server definition.
+> 📌 **Will this still work in your local IDE?** Yes. Bob auto-loads `.env` from the workspace root before resolving `${VAR}` references, so the same registration picks up your local Jira creds in the IDE and the cluster-injected env vars in CI. One config, two environments — no more bash launcher needed.
 
 ---
 

@@ -1,11 +1,11 @@
 # Jira Account Setup — Bob-a-thon Workshop
 
-Setup steps for the three Jira instances Lab 5 needs. One instance per instructor; five students mapped to each.
+Setup steps for the 14 Jira instances Lab 5 needs. One instance per student for user1–user14; user15–user20 share user14's instance.
 
 ## Table of Contents
 
 1. [Instance assignments](#1-instance-assignments)
-2. [Per-instructor Jira setup](#2-per-instructor-jira-setup)
+2. [Per-instance Jira setup](#2-per-instance-jira-setup)
    - [2.1 Create the site](#21-create-the-site)
    - [2.2 Create the project](#22-create-the-project)
    - [2.3 Disable notifications](#23-disable-notifications)
@@ -25,19 +25,30 @@ Setup steps for the three Jira instances Lab 5 needs. One instance per instructo
 
 ## 1. Instance assignments
 
-| Instructor | Site URL | Students |
-|---|---|---|
-| Andy | `bobathon1.atlassian.net` | user01–user05 |
-| (Coworker 2) | `bobathon2.atlassian.net` (TBD) | user06–user10 |
-| (Coworker 3) | `bobathon3.atlassian.net` (TBD) | user11–user15 |
+| Secret | Student(s) |
+|---|---|
+| `jira-creds-a` | user1 |
+| `jira-creds-b` | user2 |
+| `jira-creds-c` | user3 |
+| `jira-creds-d` | user4 |
+| `jira-creds-e` | user5 |
+| `jira-creds-f` | user6 |
+| `jira-creds-g` | user7 |
+| `jira-creds-h` | user8 |
+| `jira-creds-i` | user9 |
+| `jira-creds-j` | user10 |
+| `jira-creds-k` | user11 |
+| `jira-creds-l` | user12 |
+| `jira-creds-m` | user13 |
+| `jira-creds-n` | user14 **and** user15–user20 (shared fallback) |
 
-All three instances use project key `KAN` — Atlassian's default for any Space/project created from the Kanban template. Keys are scoped per-site, so `KAN` on one site is independent of `KAN` on another. No collision.
+Each instance uses project key `KAN` — Atlassian's default for any Space/project created from the Kanban template. Keys are scoped per-site, so `KAN` on one site is independent of `KAN` on another. No collision.
 
 ---
 
-## 2. Per-instructor Jira setup
+## 2. Per-instance Jira setup
 
-Each instructor performs Section 2 once on their assigned instance. ~15 min.
+Repeat Section 2 once per Jira account (14 times total). ~15 min each.
 
 ### 2.1 Create the site
 
@@ -96,11 +107,11 @@ Expected: JSON describing your project. `401` = bad username/token; `404` = bad 
 
 ## 3. Jenkins admin steps
 
-Once all three instructors have completed Section 2, the Jenkins admin wires everything up.
+Once all 14 Jira instances are provisioned per Section 2, wire everything up.
 
 ### 3.1 Required values
 
-Each instructor sends these four values via a secure channel (1Password share, Signal, encrypted email — **not** Slack or Teams).
+Capture these four values for each of the 14 instances. Keep them in a password manager (1Password, etc.) — **not** Slack or Teams.
 
 | Variable | Example |
 |---|---|
@@ -111,7 +122,7 @@ Each instructor sends these four values via a secure channel (1Password share, S
 
 ### 3.2 Create the Kubernetes secrets
 
-Run once per instance, naming the secrets `jira-creds-a` / `-b` / `-c`:
+Run once per instance, naming the secrets `jira-creds-a` through `jira-creds-n` (14 total):
 
 ```bash
 oc create secret generic jira-creds-a \
@@ -122,15 +133,28 @@ oc create secret generic jira-creds-a \
   -n jenkins
 ```
 
-Grant the Jenkins ServiceAccount read access to all three secrets:
+Grant the Jenkins ServiceAccount read access to all 14 secrets. If a `jira-secret-reader` Role already exists from an earlier (3-secret) version of this setup, delete it first — `oc create role` is not idempotent and won't update `--resource-name` in place:
 
 ```bash
+oc delete role jira-secret-reader -n jenkins --ignore-not-found
+
 oc create role jira-secret-reader \
   --verb=get \
   --resource=secrets \
   --resource-name=jira-creds-a \
   --resource-name=jira-creds-b \
   --resource-name=jira-creds-c \
+  --resource-name=jira-creds-d \
+  --resource-name=jira-creds-e \
+  --resource-name=jira-creds-f \
+  --resource-name=jira-creds-g \
+  --resource-name=jira-creds-h \
+  --resource-name=jira-creds-i \
+  --resource-name=jira-creds-j \
+  --resource-name=jira-creds-k \
+  --resource-name=jira-creds-l \
+  --resource-name=jira-creds-m \
+  --resource-name=jira-creds-n \
   -n jenkins
 
 oc create rolebinding jira-secret-reader \
@@ -149,18 +173,17 @@ The pod template is inline in the repo's root `Jenkinsfile` (the `yaml """..."""
 @NonCPS
 def routeJiraSecret(String jobName) {
     def m = jobName =~ /user0*(\d+)/
-    if (!m) return 'jira-creds-c'
+    if (!m) return 'jira-creds-n'
     int userNum = m[0][1].toInteger()
-    if (userNum >= 1  && userNum <= 5)  return 'jira-creds-a'
-    if (userNum >= 6  && userNum <= 10) return 'jira-creds-b'
-    if (userNum >= 11 && userNum <= 15) return 'jira-creds-c'
-    return 'jira-creds-c'
+    def letters = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n']
+    if (userNum >= 1 && userNum <= 14) return "jira-creds-${letters[userNum - 1]}"
+    return 'jira-creds-n'
 }
 
 def jiraSecret = routeJiraSecret(env.JOB_NAME ?: '')
 ```
 
-Pulls the numeric portion of the username from the job name (`user1`, `user01`, `user015` all parse to integers) and routes by integer comparison. Anything that doesn't match a known range falls through to `jira-creds-c`.
+Pulls the numeric portion of the username from the job name (`user1`, `user01`, `user015` all parse to integers) and indexes into the secret-letter list. user1–user14 get their own dedicated secret; anything outside that range (including parse failures) falls through to `jira-creds-n` — the same instance user14 uses.
 
 `@NonCPS` is required: Groovy's regex `Matcher` object isn't `Serializable`, and Jenkins' CPS engine serializes all local pipeline variables across checkpoints. Wrapping the regex work in a `@NonCPS` method keeps the Matcher contained — it never becomes a top-level pipeline variable, so the serializer never sees it.
 
@@ -203,13 +226,24 @@ Agent pods are dynamic — no Jenkins or OpenShift restart needed. The next buil
 
 ## 4. Student → instance mapping
 
-| User group | Instance | Site URL to share with students |
+| Student | Secret | Site URL to share |
 |---|---|---|
-| user01–user05 | Andy | `https://bobathon1.atlassian.net/browse/KAN` |
-| user06–user10 | Coworker 2 | `https://bobathon2.atlassian.net/browse/KAN` (TBD) |
-| user11–user15 | Coworker 3 | `https://bobathon3.atlassian.net/browse/KAN` (TBD) |
+| user1 | `jira-creds-a` | URL from the secret |
+| user2 | `jira-creds-b` | URL from the secret |
+| user3 | `jira-creds-c` | URL from the secret |
+| user4 | `jira-creds-d` | URL from the secret |
+| user5 | `jira-creds-e` | URL from the secret |
+| user6 | `jira-creds-f` | URL from the secret |
+| user7 | `jira-creds-g` | URL from the secret |
+| user8 | `jira-creds-h` | URL from the secret |
+| user9 | `jira-creds-i` | URL from the secret |
+| user10 | `jira-creds-j` | URL from the secret |
+| user11 | `jira-creds-k` | URL from the secret |
+| user12 | `jira-creds-l` | URL from the secret |
+| user13 | `jira-creds-m` | URL from the secret |
+| user14–user20 | `jira-creds-n` | URL from the secret (shared) |
 
-Students filter the project board by their branch label (`user1-labs`, etc.) to find their own DCR tickets.
+Each student gets their own Jira instance — except user15–user20, who share user14's. Within the shared instance, students filter the project board by their branch label (`user15-labs`, etc.) to find their own DCR tickets.
 
 ---
 
@@ -217,7 +251,7 @@ Students filter the project board by their branch label (`user1-labs`, etc.) to 
 
 Before workshop day, run one full pipeline against each instance:
 
-1. Pick a test username from each group (user01, user06, user11) and create branches `userNN-labs` on the workshop repo.
+1. Spot-check a sample of usernames (at minimum user1, user14, and user15 to exercise the shared-instance fallback) and create branches `userNN-labs` on the workshop repo.
 2. Configure the pipeline per `labs/sre/00_SETUP.md`.
 3. Walk the Jenkinsfile through Labs 1, 2, and 5.
 4. **Build Now.**
