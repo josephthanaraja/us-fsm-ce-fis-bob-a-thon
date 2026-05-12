@@ -12,8 +12,6 @@
 - [Part 3 — Pre-commit gauntlet, lap 1: built-in `/review`](#part-3--pre-commit-gauntlet-lap-1-built-in-review)
 - [Part 4 — Pre-commit gauntlet, lap 2: standards-aware review with a custom mode](#part-4--pre-commit-gauntlet-lap-2-standards-aware-review-with-a-custom-mode)
 - [Part 5 — Pre-commit gauntlet, lap 3: security review](#part-5--pre-commit-gauntlet-lap-3-security-review)
-- [Part 6 — Commit with a Bob-generated message](#part-6--commit-with-a-bob-generated-message)
-- [Part 7 — Open the PR and post the security review](#part-7--open-the-pr-and-post-the-security-review)
 - [Stuck?](#stuck)
 
 ---
@@ -30,9 +28,9 @@ You'll pull the ticket down with the Jira MCP server you configured this morning
 
 ### What you'll build in Lab 1
 
-1. **Workspace rules** in `.bob/rules/` — your team's coding standards (logging, money handling, no hardcoded secrets, commit message convention) written once. Every Bob mode that runs in this workspace reads them, including `/review` and the commit-message generator.
+1. **Workspace rules** in `.bob/rules/` — your team's coding standards (SLF4J logging conventions, `BigDecimal` for money, no hardcoded secrets, conventional-commit message format) written once. Every Bob mode that runs in this workspace reads them, including `/review` and the commit-message generator.
 
-2. **The refund feature itself** — POST `/api/orders/{id}/refund`, status transition to `REFUNDED`, tests. Built in **Code** mode against the Jira ticket. The spec is intentionally loose; the gaps are what review is for.
+2. **The refund feature itself** — `POST /api/orders/{id}/refund` plus tests, implemented in **Code** mode from the Jira ticket's acceptance criteria. The ticket is intentionally minimal; concerns it doesn't mention (authorization, audit logging, idempotency) are exactly what the three review laps will surface.
 
 3. **An `orders-code-reviewer` custom mode** — built with **Mode Writer**, rules in `.bob/rules-orders-code-reviewer/`. Pinned output shape, domain-specific concerns (audit logging, `@Transactional`, money comparisons, PII in logs).
 
@@ -45,7 +43,7 @@ You'll pull the ticket down with the Jira MCP server you configured this morning
 
 ### What you'll reuse from the repo
 
-- **The `software-security-reviewer` mode** in `.bob/custom_modes.yaml`, with its rules in `.bob/rules-software-security-reviewer/` — same security review used elsewhere in this repo, applied here pre-merge instead of in CI.
+- **The `software-security-reviewer` mode** — a pre-built security review mode shipped with this lab at `labs/app/lab1/software-security-reviewer.yaml`. You'll install it into Bob before running the third review lap in Part 5.
 
 ---
 
@@ -67,8 +65,6 @@ git pull
 git checkout -b lab1-refunds
 git push -u origin lab1-refunds
 ```
-
-You'll commit to this branch in Part 6 and open the PR in Part 7.
 
 **Capture your team's standards.** Real teams have coding standards that aren't fully expressible in a linter — "don't log customer names," "every status transition emits an audit log," "money is always `BigDecimal`." A Bob rules file makes those standards visible to every mode that runs in the workspace, including `/review` and the commit-message generator. You write them once, every reviewer reads them.
 
