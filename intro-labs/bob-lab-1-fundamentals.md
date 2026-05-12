@@ -1,20 +1,21 @@
 # Lab 1: Bob Fundamentals
 **Duration:** 40 minutes  
-**Objective:** Learn Bob’s core workflows, built-in modes, approvals, and basic project assistance
+**Objective:** Master Bob's core workflows, modes, and interactive capabilities
 
 **Prerequisites:**
 - Bob application installed and running
+- Basic familiarity with software development concepts
 
-> 📌 Here is where you can find Bob documentation if you ever get stuck or want to explore: https://bob.ibm.com/docs/ide
+> 📌 **Bob Documentation:** https://bob.ibm.com/docs/ide
 
 ---
 
 ## Table of Contents
-1. [Start Here](#getting-started-with-bob)
-2. [Bob Modes](#understanding-bobs-modes)
-3. [Approvals](#approvals-and-safe-collaboration)
-4. [Planning](#planning-with-bob)
-5. [Quick Practice](#quick-build-practice)
+1. [Overview](#overview)
+2. [Getting Started](#getting-started-with-bob)
+3. [Understanding Modes](#understanding-bobs-modes)
+4. [Approvals & Control](#approvals-and-safe-collaboration)
+5. [Hands-On Practice](#hands-on-practice)
 6. [Key Takeaways](#key-takeaways)
 7. [Troubleshooting](#troubleshooting-tips)
 
@@ -22,17 +23,22 @@
 
 ## Overview
 
-This lab gives a lightweight introduction to Bob.
+This lab introduces you to Bob's core capabilities through practical, hands-on exercises. You'll learn how to work with Bob effectively, regardless of your specific development environment or project type.
 
 ### Learning Objectives
 
 By the end of this lab, you will:
 
-- ✅ Understand Bob’s main built-in modes
-- ✅ Understand the approval flow
-- ✅ Practice planning before implementation
-- ✅ Use Bob to create and edit files safely
-- ✅ Build confidence working with Bob interactively
+- ✅ Navigate Bob's interface confidently
+- ✅ Understand and switch between Bob's modes
+- ✅ Master the approval workflow for safe collaboration
+- ✅ Use Bob for planning, coding, and learning
+- ✅ Apply Bob to your own development workflows
+
+### Why Bob?
+
+> **🎯 Bob Differentiator: Multi-Mode Intelligence**
+> Unlike other AI assistants that use a one-size-fits-all approach, Bob provides specialized modes optimized for different tasks. Plan mode helps you design before coding, Code mode implements your ideas, and Ask mode explains concepts. This separation ensures Bob gives you the right type of help at the right time.
 
 ---
 
@@ -40,256 +46,343 @@ By the end of this lab, you will:
 
 ### The Bob Interface
 
-Open the Bob application, it is very similar to the VSCode interface, but for Bob interactions you’ll mainly use:
+Open the Bob application. The interface is similar to VS Code but optimized for AI-assisted development:
 
-- **Mode selector**: shows your current mode and lets you switch between Plan, Code, Ask, and Advanced
-- **Chat history**: shows the conversation between you and Bob so you can follow the workflow
-- **Tool activity**: shows when Bob is reading files, editing files, or using other tools
-- **Input box**: where you type prompts, questions, and requests for Bob
+**Key Components:**
 
-### Other Key Interface Components
+1. **Mode Selector** (bottom left)
+   - Shows your current mode (Plan, Code, Ask, Advanced)
+   - Click to switch between modes
+   - Each mode optimizes Bob's behavior for specific tasks
 
-#### Settings
-Access Bob's configuration options including:
-- API keys and model selection
-- Auto-approval preferences
-- Custom mode configurations
-- Theme and display options
+2. **Chat Panel** (main area)
+   - Conversation history with Bob
+   - Tool activity indicators (when Bob reads/edits files)
+   - Input box for your prompts and questions
 
-#### Extensions
-Extend Bob's capabilities with additional tools and integrations:
-- Browse available extensions
-- Install and manage extensions
-- Configure extension settings
+3. **File Explorer** (left sidebar)
+   - Navigate your project structure
+   - Create, rename, and delete files
+   - Quick access to any file
 
-#### File Explorer
-Navigate your project structure:
-- View all files and folders in your workspace
-- Create, rename, and delete files
-- Organize your project hierarchy
-- Quick access to any file
+4. **File Viewer** (right panel)
+   - View file contents with syntax highlighting
+   - Preview Bob's proposed changes before approval
+   - Compare original and modified versions
 
-#### File Viewer
-Review and edit files directly:
-- View file contents with syntax highlighting
-- See Bob's proposed changes before approval
-- Compare original and modified versions
-- Edit files manually when needed
+5. **Settings** (gear icon)
+   - Configure API keys and model selection
+   - Set auto-approval preferences
+   - Manage custom modes
+   - Adjust theme and display options
 
-> 📌 See more information about all the chat features here: https://bob.ibm.com/docs/ide/features/chat-interface
+> 📌 **Learn More:** [Chat Interface Features](https://bob.ibm.com/docs/ide/features/chat-interface)
 
-### First Interaction
+### Your First Interaction
 
-Try:
+Let's start with a simple conversation to understand Bob's capabilities:
 
+**Try this:**
 ```text
-Hi Bob! I'm new here. Can you tell me 3 simple things you can help me with?
+Hi Bob! I'm new here. Can you tell me 3 things you can help me with?
 ```
 
-Then:
-
+**Then ask:**
 ```text
 What mode are you in right now, and what does that mean?
 ```
 
-These two prompts provide you some initial information on what Bob does and what modes are. Feel free to try out other prompts and questions to see how Bob responds. 
+**What's Happening:**
+- Bob responds conversationally to help you understand its capabilities
+- Bob explains the current mode and its purpose
+- You're building familiarity with how Bob communicates
 
-Let's build an understanding of Modes and how they work for Bob. 
+**💡 Tip:** Feel free to ask Bob questions about itself, your project, or development concepts. Bob is designed to be helpful and informative.
 
 ---
 
 ## Understanding Bob's Modes
 
-Bob has three distinct modes, each optimized for different tasks:
+Bob has specialized modes, each optimized for different types of work:
 
-> **🎯 Bob Differentiator: [Customizable Modes](../bob-differentiators.md#1--extensible-architecture)**
-> Bob's mode system is one of its key differentiators. Unlike other AI assistants, Bob allows you to create custom modes tailored to your team's specific workflows. The three built-in modes you'll use in this lab are just the beginning—you can create specialized modes for code review, documentation, architecture design, and more. 
+> **🎯 Bob Differentiator: Customizable Modes
+>
+> Bob's mode system is a key differentiator. The three built-in modes are just the beginning—you can create custom modes tailored to your team's specific workflows (code review, documentation, architecture design, DevOps, etc.). This extensibility makes Bob uniquely adaptable to your organization's needs.
 
-#### 🎯 Plan Mode
-**When to use**: Planning, designing, strategizing
-- Create project structures
-- Design API endpoints
-- Plan database schemas
-- Make architectural decisions
+### The Three Core Modes
+
+#### 📋 Plan Mode
+**When to use:** Planning, designing, strategizing before implementation
+
+**Perfect for:**
+- Designing system architecture
+- Planning API endpoints
+- Creating database schemas
+- Breaking down complex features
+- Making technical decisions
+- Outlining project structure
+
+**Example prompts:**
+```text
+Help me design a REST API for a user management system
+Plan the database schema for an e-commerce application
+What's the best architecture for a microservices-based system?
+```
 
 #### 💻 Code Mode
-**When to use**: Writing, modifying, refactoring code
-- Implement features
-- Create files
-- Modify existing code
-- Fix bugs
+**When to use:** Writing, modifying, or refactoring code
+
+**Perfect for:**
+- Implementing features
+- Creating new files
+- Modifying existing code
+- Fixing bugs
+- Refactoring code
+- Adding tests
+
+**Example prompts:**
+```text
+Create a user authentication module in Python
+Add error handling to the payment processing function
+Refactor this code to use async/await
+```
 
 #### ❓ Ask Mode
-**When to use**: Learning, understanding, getting help
-- Explain code concepts
-- Get documentation
-- Understand errors
-- Learn best practices
+**When to use:** Learning, understanding, getting explanations
+
+**Perfect for:**
+- Understanding code concepts
+- Getting documentation
+- Explaining errors
+- Learning best practices
+- Comparing technologies
+- Clarifying requirements
+
+**Example prompts:**
+```text
+Explain how JWT authentication works
+What's the difference between REST and GraphQL?
+Why is this code throwing a NullPointerException?
+```
 
 ### Switching Between Modes
 
-In Bob's interface:
-1. Look for the mode selector (usually at the bottom left of the chat panel)
+**To switch modes:**
+1. Look for the mode selector at the bottom left of the chat panel
 2. Click to see available modes
 3. Select the mode you need
-4. Bob will adapt its behavior accordingly
+4. Bob adapts its behavior immediately
 
-### Mode Practice
+### Mode Practice Exercise
 
-Try switching into Plan mode, then ask:
+Let's practice switching modes and seeing how Bob's responses differ:
 
+**Step 1: Plan Mode**
+Switch to Plan mode and ask:
 ```text
-Help me plan a simple personal notes project. What files should I create?
+Help me plan a task management application. What features should I include and how should I structure it?
 ```
 
-Then switch to Ask mode and ask:
+**What to observe:**
+- Bob asks clarifying questions about your requirements
+- Bob provides architectural guidance
+- Bob suggests features and structure without writing code
 
+**Step 2: Ask Mode**
+Switch to Ask mode and ask:
 ```text
-What is the difference between HTML, CSS, and JavaScript?
+What are the key differences between SQL and NoSQL databases, and when should I use each?
 ```
 
-You can start to see how different modes can help with specific types of requests and how easy it is to switch between modes.
+**What to observe:**
+- Bob provides educational explanations
+- Bob compares and contrasts concepts
+- Bob helps you understand, not just implement
 
+**Step 3: Code Mode**
+Switch to Code mode and ask:
+```text
+Create a simple Python function that validates email addresses using regex
+```
 
-> 📌 See more infromation about modes here: https://bob.ibm.com/docs/ide/features/modes 
+**What to observe:**
+- Bob writes actual code
+- Bob creates files or modifies existing ones
+- Bob focuses on implementation
+
+> 📌 **Learn More:** [Bob Modes Documentation](https://bob.ibm.com/docs/ide/features/modes)
 
 ---
 
 ## Approvals and Safe Collaboration
 
-Approvals are a core part of working with Bob. They help you stay in control, review changes before they happen, and catch mistakes early.
-### Best Practice
+Approvals are Bob's safety mechanism—you stay in control of all changes to your codebase.
 
-Before approving:
-1. Read the preview
-2. Check the target file
-3. Make sure it matches what you asked for
+### How Approvals Work
 
-### Quick Approval Exercise
+When Bob wants to make changes, it:
+1. Shows you exactly what it plans to do
+2. Displays a preview of the changes
+3. Waits for your approval before proceeding
+4. Only makes changes after you confirm
 
-Ask Bob:
+### Best Practices for Approvals
 
+**Before approving, always:**
+1. ✅ Read the preview carefully
+2. ✅ Check which file will be modified
+3. ✅ Verify the changes match your request
+4. ✅ Look for unintended side effects
+
+**Red flags to watch for:**
+- Changes to files you didn't mention
+- Deletions of important code
+- Modifications that seem too broad
+- Anything that doesn't match your intent
+
+### Approval Exercise
+
+Let's practice the approval workflow:
+
+**Step 1: Simple File Creation**
+In Code mode, ask Bob:
 ```text
 Create a file called hello.txt with the text "Hello from Bob"
 ```
 
-Watch for:
-- which tool Bob uses
-- when the approval prompt appears
-- what the preview shows
+**Watch for:**
+- Which tool Bob uses (`write_to_file`)
+- When the approval prompt appears
+- What the preview shows
+- The file path and content
+
+**Step 2: Review and Approve**
+- Read the preview
+- Verify the filename is correct
+- Check the content matches your request
+- Click "Approve" or "Reject"
 
 ### Understanding Auto-Approvals
 
-**Auto-approvals** allow Bob to make multiple changes without asking for confirmation each time.
+**Auto-approvals** allow Bob to make multiple changes without asking each time. This is useful for:
+- Creating multiple related files
+- Making consistent changes across files
+- Batch operations
 
-To enable auto-approvals:
-1. Look for auto-approval settings in Bob
-2. Enable for this session
-3. Bob will now create multiple files rapidly
+**⚠️ Important Safety Notes:**
+- Only enable auto-approvals when you trust the operation
+- Review all changes after Bob completes them
+- You can always undo changes using version control
+- Start with manual approvals until you're comfortable
 
-**⚠️ Important**: Review the files after Bob creates them to ensure they match your requirements.
+**To enable auto-approvals:**
+1. Look for auto-approval settings in Bob's interface
+2. Enable for the current session
+3. Bob will make changes more rapidly
+4. Review the results when complete
 
-> 📌 See more infromation about approvals here: https://bob.ibm.com/docs/ide/features/auto-approving-actions 
+> 📌 **Learn More:** [Auto-Approving Actions](https://bob.ibm.com/docs/ide/features/auto-approving-actions)
 
 ---
 
-## Planning with Bob
+## Hands-On Practice
 
-**Switch to Plan Mode** and ask Bob:
+Now let's put everything together with practical exercises. These work with any programming language or framework.
 
-```
-I want to create a todo application with a Python Flask backend and JavaScript frontend.
-Please help me plan:
-1. Project directory structure
-2. API endpoints needed
-3. Database schema
-4. Technology stack recommendations
+### Exercise 1: Planning a Feature
+
+**Switch to Plan Mode** and try this:
+
+```text
+I want to add a user profile feature to my application. Help me plan:
+1. What data should I store?
+2. What API endpoints do I need?
+3. How should I structure the code?
 ```
 
 **Bob's Interactive Approach:**
+- Bob will ask clarifying questions about your requirements
+- Bob helps you think through the design
+- Bob provides suggestions while letting you drive decisions
 
-Before providing a plan, Bob will ask clarifying questions to understand your requirements better. This is a key differentiator—Bob lets you drive the process while making helpful suggestions.
+**Respond with your preferences:**
+- Answer Bob's questions based on your needs
+- Ask follow-up questions if anything is unclear
+- Iterate until you have a clear plan
 
-Bob might ask:
-- "How complex should the application be?"
-- "Which database would you prefer (SQLite, PostgreSQL, MySQL)?"
-- "Do you need user authentication?"
-- "Should we include additional features like categories or priorities?"
+### Exercise 2: Creating Files
 
-**For this lab, respond with basic requirements:**
-- Simple/basic complexity
-- SQLite database (no installation needed)
-- No user authentication
-- Basic CRUD operations only
+**Switch to Code Mode** for these quick exercises:
 
-This collaborative approach ensures Bob builds exactly what you need, not what it assumes you want.
-
----
-
-## Quick Build Practice
-
-Switch Bob into Code Mode. This section should be fast. You’re just trying a few core actions: create, edit, connect, and explain.
-
-### Step 1: Create HTML
-
+**Step 1: Create a configuration file**
 ```text
-Create an index.html file for a simple notes page with:
-- a heading
-- a textarea
-- a save button
-Keep it minimal.
-```
-
-### Step 2: Add CSS
-
-```text
-Create a style.css file that makes the page clean and easy to read.
+Create a config.json file with basic application settings:
+- app name
+- version
+- environment (development)
 Keep it simple.
 ```
 
-### Step 3: Add JavaScript
-
+**Step 2: Create a utility function**
 ```text
-Create an app.js file that shows a message when the save button is clicked.
-Keep it very simple.
+Create a utils file in [your preferred language] with a function that formats dates.
+Keep it minimal and well-commented.
 ```
 
-### Step 4: Connect the files
-
+**Step 3: Connect related files**
 ```text
-Update index.html to link style.css and app.js.
+Create a main file that imports and uses the utility function from utils.
 ```
 
-### Step 5: Ask for an explanation
+### Exercise 3: Understanding Code
+
+**Switch to Ask Mode** and try:
 
 ```text
 Explain what each file does in simple terms:
-- index.html
-- style.css
-- app.js
+- config.json
+- utils file
+- main file
 ```
 
-### Step 6: Make an edit
+### Exercise 4: Making Improvements
+
+**Back to Code Mode:**
 
 ```text
-Add a short comment at the top of app.js explaining what the file does.
+Add error handling to the date formatting function in utils.
+Include a comment explaining why error handling is important here.
 ```
 
-Great! Now that we have run through a quick workflow you have a basice understanding of how Bob works and how to work with Bob! Take a moment to review the takeaways and tips before we move into the next lab!
+**What You've Practiced:**
+- ✅ Planning before implementing
+- ✅ Creating files with Bob
+- ✅ Understanding your code
+- ✅ Making improvements iteratively
 
 ---
 
 ## Key Takeaways
 
 ### Bob's Modes
-- **Architect**: Perfect for planning and design decisions
-- **Code**: Best for implementation and file creation
-- **Ask**: Great for learning and understanding
-- **Custom Modes**: Create your own specialized modes ([Learn more](../bob-differentiators.md#customizable-modes))
+- **Plan Mode**: Design and strategize before coding
+- **Code Mode**: Implement features and make changes
+- **Ask Mode**: Learn and understand concepts
+- **Custom Modes**: Create specialized modes for your workflows ([Learn more](../bob-differentiators.md#customizable-modes))
 
-### Approvals
-- Bob shows what it wants to do before taking action, you stay in control of all changes
-- Always review before approving
+### Working with Bob
+- Bob shows what it will do before taking action
+- You stay in control through approvals
+- Switch modes based on your current task
+- Ask clarifying questions when needed
+- Iterate and refine your requests
+
+### Best Practices
+- Plan before implementing (use Plan mode first)
+- Review all changes before approving
+- Start with specific, focused requests
+- Use the right mode for each task
+- Ask Bob to explain when you're unsure
 
 ---
 
@@ -297,60 +390,78 @@ Great! Now that we have run through a quick workflow you have a basice understan
 
 ### Bob is doing too much
 
-Ask more narrowly:
+**Solution:** Be more specific and narrow in your requests
 
 ```text
-Create only index.html for now.
+❌ "Build a complete application"
+✅ "Create just the user model file for now"
 ```
 
-or
+### The generated code is too complex
+
+**Solution:** Ask Bob to simplify
 
 ```text
-Keep it minimal and do not build a full application.
+Please simplify this to beginner-friendly code with minimal features
 ```
 
-### The generated files are too complex
+### I'm not sure which mode to use
 
-Ask:
+**Quick reference:**
+- Planning/designing → **Plan mode**
+- Creating/editing code → **Code mode**
+- Learning/understanding → **Ask mode**
+- Complex workflows → **Advanced mode**
+
+### I don't understand the code
+
+**Solution:** Switch to Ask mode and request an explanation
 
 ```text
-Please simplify this to beginner-friendly code with minimal features.
+Explain this code line by line in plain English
 ```
 
-### I’m not sure which mode to use
+### Bob isn't giving me what I want
 
-Use this rule:
-- planning → Plan mode
-- creating/editing → Code mode
-- explanation → Ask mode
-- mixed workflows → Advanced mode
-
-### I don’t understand the code
-
-Ask:
+**Solution:** Provide more context and be specific
 
 ```text
-Explain this file line by line in plain English.
+❌ "Fix this"
+✅ "Fix the null pointer exception on line 45 in UserService.java by adding a null check"
 ```
 
 ---
 
 ## What You've Learned
 
-✅ How to interact with Bob in a beginner-friendly way  
-✅ How to switch between built-in modes  
-✅ How approvals work and why they matter  
+✅ How to navigate Bob's interface  
+✅ How to switch between modes effectively  
+✅ How approvals keep you in control  
 ✅ How to plan before implementing  
-✅ How to create and edit simple files  
+✅ How to create and modify files safely  
+✅ How to use Bob for learning and understanding  
+
+---
+
+## Next Steps
+
+Now that you understand Bob's fundamentals, you're ready to:
+- Apply Bob to your actual projects
+- Explore advanced features in Lab 2
+- Create custom modes for your workflows
+- Integrate Bob into your development process
 
 ---
 
 ## Additional Resources
 
 - [Bob Documentation](https://bob.ibm.com/docs/ide)
+- [Bob Modes Guide](https://bob.ibm.com/docs/ide/features/modes)
+- [Chat Interface Features](https://bob.ibm.com/docs/ide/features/chat-interface)
+- [Auto-Approval Settings](https://bob.ibm.com/docs/ide/features/auto-approving-actions)
 
 ---
 
 **Lab 1 Complete! 🎉**
 
-You’ve completed Bob Lab 1 using short, practical exercises that teach the core workflow without requiring a full build.
+You've mastered Bob's fundamentals through practical, hands-on exercises. You're now ready to apply these skills to any development project and explore Bob's advanced capabilities.

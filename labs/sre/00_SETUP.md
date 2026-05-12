@@ -68,14 +68,14 @@ You should land back on the folder's Credentials page, with one row now showing 
 
 ---
 
-## Step 2 — Create your working branch
+## Step 2 — Fork the repository and create your branch
 
-You'll work on your own branch throughout the workshop. A convention like `user1-labs`, `user2-labs`, etc., keeps names unique.
+Fork the repository into your own Github Account
 
 From a terminal on your laptop:
 
 ```bash
-# Clone the repo (the URL your instructor gave you)
+# Clone the repo (the URL of your forked repo)
 git clone <repo-url>
 cd us-fsm-ce-fis-bob-a-thon
 
@@ -104,7 +104,7 @@ From the Jenkins homepage:
    |---|---|
    | **Definition** | `Pipeline script from SCM` |
    | **SCM** | `Git` |
-   | **Repository URL** | paste the GitHub repo URL from your instructor |
+   | **Repository URL** | paste the GitHub repo URL from your fork |
    | **Credentials** | for a public repo: leave as `- none -`. For a private repo: select the `userN-github-pat` credential you created in Step 1 |
    | **Branch Specifier** | `*/user1-labs` — replace with **your** branch name |
    | **Script Path** | `Jenkinsfile` |

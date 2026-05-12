@@ -21,7 +21,8 @@ controller:
     - junit:latest
     - ansicolor:latest
     - matrix-auth:latest
-    - cloudbees-folder:latest 
+    - cloudbees-folder:latest
+    - pipeline-graph-view:latest
   service:
     type: ClusterIP
   serviceAccount:
