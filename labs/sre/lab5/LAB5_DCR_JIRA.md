@@ -81,7 +81,7 @@ Output:
 
 Tool groups:
   - read
-  - mcp (scoped to the `atlassian` server, restricted to the alwaysAllow tools defined in .bob/mcp.json)
+  - mcp
 ```
 
 The title and label format is a hard contract — Part 7 (if you do it) uses the per-branch label to find prior tickets.
@@ -92,9 +92,7 @@ Mode Writer may put everything in the mode definition in `.bob/custom_modes.yaml
 
 ## Part 2 — Dogfood the mode against your own Jira
 
-Your current `.bob/mcp.json` still uses the bash-launcher form from the morning intro lab, which sources `.env` and points at *your own* Jira instance. That makes the IDE the perfect place to validate the mode before it ever sees CI — any ticket it creates lands in your personal project and can be deleted without consequence.
-
-Set up the same inputs the pipeline will produce. Run these from the repo root:
+Your JIRA MCP server should be `.bob/mcp.json` from the morning intro lab. Lets use that to validate the mode before we run it on the pipeline. In part 5, we will have the pipeline create 3 files that act as inputs for Bob. Let's create them locally now for testing. Open your terminal in Bob and run these from the repo root, then paste:
 
 ```bash
 git log origin/main..HEAD --pretty=format:'%h %s' > dcr-commits.txt
@@ -104,7 +102,7 @@ printf 'BUILD_NUMBER=local\nBRANCH=%s\nJIRA_PROJECT=KAN\n' "$(git rev-parse --ab
 
 These three files are throwaway scratch — they exist only to mirror what the pipeline writes at runtime. We delete them in Part 6 before committing.
 
-Now switch to the new `pipeline-dcr-jira-reporter` mode in Bob's mode picker (or type `/pipeline-dcr-jira-reporter`) and ask Bob to generate the DCR:
+Now start a new task, and switch to the new `pipeline-dcr-jira-reporter` mode in Bob's mode picker (or type `/pipeline-dcr-jira-reporter`) and ask Bob to generate the DCR:
 
 ```
 Generate the DCR for this branch using dcr-commits.txt, dcr-diffstat.txt, and dcr-context.txt. File the resulting Jira ticket per the mode's rules.
@@ -112,7 +110,7 @@ Generate the DCR for this branch using dcr-commits.txt, dcr-diffstat.txt, and dc
 
 Watch Bob:
 
-1. Read the three input files (plus `bob-pr-review.md` / `bob-test-analysis.md` if you have them from earlier labs)
+1. Read the three input files
 2. Assemble the markdown DCR
 3. Call `jira_create_issue` against your own Jira instance
 4. Report back the ticket key
@@ -155,7 +153,7 @@ Open `.bob/mcp.json` and replace your existing `atlassian` entry with this:
     "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
   },
   "disabled": false,
-  "alwaysAllow": ["jira_get_issue", "jira_search", "jira_add_comment", "..."]
+  "alwaysAllow": ["jira_get_issue", "jira_search", "jira_add_comment", "jira_create_issue"]
 }
 ```
 
@@ -167,7 +165,11 @@ Open `.bob/mcp.json` and replace your existing `atlassian` entry with this:
 - **`disabled: false`**: explicit because the file is committed to git and a future maintainer reading it shouldn't have to guess
 - **`alwaysAllow` list**: By default, Bob requires human approval for all MCP tool calls. When we run Bob on a remote cluster, we aren't able to provide approval to Bob. Anything not in `alwaysAllow` will require the model's tool call to surface a prompt that nobody is around to answer in a CI run, so the Jira write effectively no-ops — which is sometimes what you want. Treat this list as the contract.
 
-**Heads up:** this swap will break Jira calls from your local IDE — Bob's `${VAR}` substitution in MCP config does not resolve from `.env` on disk. That's expected at this point. You've already finished iterating on the mode; the IDE was a means, CI is the destination.
+After saving `.bob/mcp.json`, restart the `atlassian` MCP server so Bob picks up the new config:
+
+1. Open **Settings → MCP**
+2. Find `atlassian` in the server list, click on it
+3. Click the restart/reload button
 
 ---
 
@@ -181,7 +183,7 @@ Add a "DCR" stage to @Jenkinsfile right after the Unit Tests stage. It should be
 - Gather change material into three relative-path files in the workspace:
     - dcr-commits.txt — output of `git log origin/main..HEAD --pretty=format:'%h %s'`
     - dcr-diffstat.txt — output of `git diff origin/main...HEAD --stat`
-    - dcr-context.txt — exactly three lines: `BUILD_NUMBER=${BUILD_NUMBER}`, `BRANCH=${BRANCH_NAME}`, `JIRA_PROJECT=${JIRA_PROJECT}`
+    - dcr-context.txt — exactly three lines: `BUILD_NUMBER=${BUILD_NUMBER}`, `BRANCH=$(git rev-parse --abbrev-ref HEAD)`, `JIRA_PROJECT=KAN` (derive BRANCH from git since `BRANCH_NAME` isn't set on non-multibranch pipelines; hardcode `JIRA_PROJECT=KAN` since every student's Jira instance uses that key and the env var isn't available in the default container)
 - Call askBob with the `pipeline-dcr-jira-reporter` mode and a short prompt asking Bob to read those three files (plus `bob-pr-review.md` and `bob-test-analysis.md` if present) and produce the DCR per the mode's rules
 - Save askBob's return value to deployment-change-request.md and archive it as a build artifact
 ```
