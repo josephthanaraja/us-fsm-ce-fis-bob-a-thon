@@ -207,4 +207,4 @@ Did Bob's root-cause guess match yours? If it mis-diagnosed something obvious, t
 
 ---
 
-When you're ready, open [LAB3_SECURITY_SCANNING.md](../lab3/LAB3_SECURITY_SCANNING.md).
+When you're ready, open [LAB3_SECURITY_SCANNING.md](../lab3/LAB3_SECURITY_ANALYSIS.md).

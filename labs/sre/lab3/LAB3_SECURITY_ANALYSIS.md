@@ -143,6 +143,8 @@ Now that vulnerabilities have been injected, let's see what Bob detects in real-
    - Bob will analyze the file and identify security issues in real-time
    - **You should see 4 critical findings** displayed in the Bob Findings panel
 
+   > **Note:** Bob Findings should update with its security findings, if it does not, try to close and reopen the `OrderService.java` file or restart Bob
+
 3. **Review the inline findings:**
    
    Bob Findings intelligently prioritizes and displays the **most critical security issues** that require immediate attention:

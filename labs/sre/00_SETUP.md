@@ -138,7 +138,7 @@ The same pipeline runs through all 5 labs. Your loop for each lab:
 4. In Jenkins, click **Build Now** on your pipeline.
 5. Watch the new stage run.
 
-Ready? Open [LAB1_PR_REVIEW.md](LAB1_PR_REVIEW.md).
+Ready? Open [LAB1_PR_REVIEW.md](lab1/LAB1_PR_REVIEW.md).
 
 ---
 

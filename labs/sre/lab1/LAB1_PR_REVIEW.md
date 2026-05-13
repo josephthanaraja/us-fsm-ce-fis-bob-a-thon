@@ -111,7 +111,7 @@ Bob, analyze the diff between my branch and main.
 
 You may need to approve the tool calls Bob tries to make.
 
-Bob has the ability analyze the diff using the `obtain_git_diff` tool, the Github MCP server or even with Github CLI. This is something you can specify in your `AGENTS.md` file once you gain a preference.
+Bob has the ability to analyze the diff using the `obtain_git_diff` tool, the Github MCP server or even with Github CLI. This is something you can specify in your `AGENTS.md` file once you gain a preference.
 
 This overview of the diff is fine, but we can implement custom modes to get more detailed and better formatted information. 
 

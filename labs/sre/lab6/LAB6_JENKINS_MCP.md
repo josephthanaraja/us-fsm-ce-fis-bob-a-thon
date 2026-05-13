@@ -85,7 +85,7 @@ To configure the server, we will use the exact same pattern you used for the Jir
 
 1. Copy the token value, you will need it later, and click the **Done** button.
 
-Next, lets setup the MCP server. The `.bob/mcp.json` file already exists at the repo root. 
+Next, lets setup the MCP server. The `.bob/mcp.json` file already exists at the repo root.
 
 1. Open the `.bob/mcp.json` file. If you completed the advanced features lab, it might already have the Jira/Atlassian server configured. That's fine — we'll add the Jenkins server alongside it.
 
@@ -194,13 +194,15 @@ Now that the server is connected, let's explore what's on your Jenkins instance.
     Use the jenkins MCP server to list all jobs/pipelines on the system.
     ```
 
-1. Bob will call the `get_all_item` tool and show you all pipelines. You should see your pipelines (e.g., `user1-pipeline`).
+1. Bob will call the `get_all_item` tool and show you all pipelines. You should see your pipelines (e.g., `user1/user1-pipeline`).
 
-1. Now focus on your specific pipeline. Replace `user1-pipeline` with your actual pipeline name and run:
+1. Now focus on your specific pipeline. Replace `user1/user1-pipeline` with your actual pipeline name and run:
 
     ```text
-    Use the jenkins MCP server to get detailed information about the user1-pipeline pipeline.
+    Use the jenkins MCP server to get detailed information about the user1/user1-pipeline pipeline.
     ```
+
+    > **Note:** we are using the folder/pipelinename syntax to specify the pipeline. It should match what was returned in step 1 of Part 2.
 
 Bob will call several tools to provide a comprehensive summary of your pipeline including details like: Pipeline description, Last build number and status, Recent build history, Build artifacts (if any), and more.
 
@@ -226,15 +228,15 @@ Bob will call several tools to provide a comprehensive summary of your pipeline 
 
 ## Part 3 — Analysis and Insights
 
-Now let's explore a couple of more complex / comprehensive scenarios we can explore with Bob. 
+Now let's explore a couple of more complex / comprehensive scenarios we can explore with Bob.
 
-1. Pick a recent build number from Part 2 that either had a `FAILURE` OR `UNSTABLE` (let's say build #12). Ask Bob to retrieve and analyze the logs:
+1. Pick a recent build number from Part 2 that either had a `FAILURE` OR `UNSTABLE` (let's say build #12). Ask Bob to retrieve and analyze the logs (remember to replace the pipeline name with your own pipeline name)::
 
     ```text
     Use the jenkins MCP server to get the console log for build #12 of "user1-pipeline". Analyze it and tell me what caused the failure.
     ```
 
-1. To understand what changed between a successful and failed build, ask Bob to compare two build numbers (be sure to use a successful and a failed build that you saw from Part 2).
+1. To understand what changed between a successful and failed build, ask Bob to compare two build numbers (be sure to use a successful and a failed build that you saw from Part 2 and remember to replace the pipeline name with your own pipeline name).
 
     ```text
     Compare build #14 (successful) with build #12 (failed) of "user1-pipeline". What changed?
@@ -242,7 +244,7 @@ Now let's explore a couple of more complex / comprehensive scenarios we can expl
 
 1. Bob will retrieve information for both builds and tell you what changed between the two builds. Focusing on: GIT comitts, files that changed, test differences, etc.
 
-1. We can also ask Bob to do more than compare two builds, but provide analysis across various builds. Go ahead and ask Bob to look for patterns:
+1. We can also ask Bob to do more than compare two builds, but provide analysis across various builds. Go ahead and ask Bob to look for patterns (remember to replace the pipeline name with your own pipeline name):
 
     ```text
     Use the jenkins MCP server to analyze the last 20 builds of "user1-pipeline". What patterns do you see in failures? What's the success rate? What's the average build duration?
@@ -250,10 +252,10 @@ Now let's explore a couple of more complex / comprehensive scenarios we can expl
 
 1. Again, Bob will retrieve data and provide its analysis. Providing things like success rate, failure patterns, average durations, etc.
 
-1. Finally, lets ask Bob to create a comprehensive report for us using the following prompt:
+1. Finally, lets ask Bob to create a comprehensive report for us using the following prompt (remember to replace the pipeline name with your own pipeline name):
 
     ```text
-    Use the jenkins MCP server to create a health report for "user1-labs" covering the last 10 builds. Include:
+    Use the jenkins MCP server to create a health report for "user1-pipeline" covering the last 10 builds. Include:
     - Success rate
     - Average build duration
     - Most common failure causes
@@ -272,16 +274,16 @@ The above sections are just some of the things you can do with Bob integrated wi
 
 Not really a challenge, but here are some additional prompts you can use to explore what else you can have Bob do with Jenkins:
 
-- Pick a recent build number from Part 3 (let's say build #15). Ask Bob:
+- Pick a recent build number from Part 3 (let's say build #15). Ask Bob :
 
     ```text
-    Use the jenkins MCP server to get detailed information about build #15 of the job "user1-labs".
+    Use the jenkins MCP server to get detailed information about build #15 of the job "user1-pipeline".
     ```
 
 - Test case failures:
 
     ```text
-    Use the jenkins MCP server to check the last 15 builds of "user1-labs". Are any tests failing intermittently? Which tests are flaky?
+    Use the jenkins MCP server to check the last 15 builds of "user1-pipeline". Are any tests failing intermittently? Which tests are flaky?
     ```
 
 - Daily monitor query:
@@ -364,7 +366,7 @@ Analyze build performance over time and suggest optimizations.
 **Prompt to try:**
 
 ```text
-Use the jenkins MCP server to analyze the last 50 builds of "user1-labs". For each stage:
+Use the jenkins MCP server to analyze the last 50 builds of "user1-pipeline". For each stage:
 - Calculate average duration
 - Identify duration trends (getting faster/slower)
 - Compare to other pipelines
