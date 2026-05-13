@@ -269,21 +269,6 @@ Bob will generate a comprehensive security analysis report: `SECURITY_ANALYSIS_R
 > Create the SECURITY_ANALYSIS_REPORT.md file with all the findings you just analyzed
 > ```
 
-**Executive Summary:**
-
-> **Note:** The exact counts may vary based on Bob's analysis and the lab environment. The numbers below are representative examples.
-
-| Severity | Count |
-|----------|-------|
-| 🔴 CRITICAL | 3 |
-| 🟠 HIGH | 4 |
-| 🟡 MEDIUM | 5 |
-| 🔵 LOW | 3 |
-| ⚪ INFO | 2 |
-| **TOTAL** | **~17** |
-
-**Risk Rating:** 🔴 **CRITICAL** - Application must not be deployed
-
 **Report Includes:**
 - Detailed findings with CVSS scores, CWE mappings, and code examples
 - Specific remediation steps for each vulnerability
@@ -565,16 +550,31 @@ REQUIREMENTS:
 2. Phase 1 - SonarQube Security Scanning (MANDATORY):
    - Run Maven SonarQube scan from order-service directory
    - Use test-compile goal before sonar:sonar
-   - Wait for analysis completion with retry logic (max 12 retries, 10 seconds between)
-   - Fetch metrics: bugs, vulnerabilities, code_smells, security_hotspots, security_rating, reliability_rating, security_review_rating
-   - Parse JSON response using Groovy JsonSlurper (no jq dependency)
-   - Store results in serializable Map structure
+   - **CRITICAL: Implement two-phase wait strategy:**
+     
+     **Phase 1a - Wait for Task Completion (12 retries, 10 seconds between):**
+     - Check task status via: curl "${SONAR_HOST_URL}/api/ce/component?component=${PROJECT_KEY}"
+     - Parse status using: grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4
+     - Continue only when status == 'SUCCESS'
+     - Break if status == 'FAILED'
+     - Use try-catch for error handling
+     
+     **Phase 1b - Fetch Metrics (6 retries, 5 seconds between):**
+     - Only after task completion, fetch metrics via: curl "${SONAR_HOST_URL}/api/measures/component?component=${PROJECT_KEY}&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,security_rating,reliability_rating,security_review_rating"
+     - Parse JSON response using Groovy JsonSlurper (no jq dependency)
+     - Store metrics as String primitives in securityResults.sonarqube map
+     - Check if sonarData.component?.measures exists and has size > 0
+     - Set sonarData = null after parsing to avoid serialization issues
+   
+   - Store results in serializable Map structure with String values
+   - Display metrics in console output
 
 3. Phase 2 - Grype Vulnerability Scanning:
    - Install Grype on-demand in the build-tools container using: curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
    - Run scan from order-service directory: grype dir:. --scope all-layers -o json > grype-report.json
    - Parse JSON to count Critical, High, and Medium severity vulnerabilities
    - Use grep and wc -l for counting (no jq dependency)
+   - Store counts as Integer primitives in securityResults.trivy map
    - Wrap in catchError to prevent pipeline failure
 
 4. Phase 3 - CVE Analysis with Bob (conditional):
@@ -586,6 +586,7 @@ REQUIREMENTS:
    - Extract deployment recommendation (BLOCK/WARN/PROCEED)
 
 5. Phase 4 - Risk Level Calculation:
+   - Parse SonarQube String values to Integer safely using Integer.parseInt()
    - Calculate risk score: vulnerabilities*10 + hotspots*5 + bugs*2 + critical_cves*20 + high_cves*10
    - Determine risk level: CRITICAL (≥50), HIGH (≥30), MEDIUM (≥10), LOW (<10)
    - Store as serializable primitives (String/Integer only)
@@ -608,6 +609,9 @@ IMPORTANT CONSTRAINTS:
 - Wrap all phases in catchError blocks to ensure pipeline completion
 - Use container('build-tools') for Grype installation and scanning
 - Use container('bob') for CVE analysis
+- **CRITICAL: Must implement two-phase SonarQube wait (task status check THEN metrics fetch)**
+- Store SonarQube metrics as Strings, parse to Integer only when calculating risk score
+- Clear JSON objects after parsing (set to null) to avoid serialization issues
 
 The stage should provide clear console output with emoji indicators and progress messages for each phase.
 ```
