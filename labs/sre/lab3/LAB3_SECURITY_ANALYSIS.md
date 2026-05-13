@@ -28,8 +28,8 @@
   - [Step 3.1: Create SonarQube Token and Project](#step-31-create-sonarqube-token-and-project)
   - [Step 3.2: Run SonarQube Scan and Generate Analysis Report](#step-32-run-sonarqube-scan-and-generate-analysis-report)
   - [Step 3.3: Review the SonarQube Analysis Report](#step-33-review-the-sonarqube-analysis-report)
-- [Part 4: Add Unified Security & CVE Analysis Stage](#part-4-add-unified-security--cve-analysis-stage)
-  - [Step 4.1: Add SonarQube Security Analysis Stage](#step-41-add-sonarqube-security-analysis-stage)
+- [Part 4: Add SonarQube & Grype Security Analysis Stage](#part-4-add-sonarqube--grype-security-analysis-stage)
+  - [Step 4.1: Add SonarQube & Grype Security Analysis Stage](#step-41-add-sonarqube--grype-security-analysis-stage)
 - [Part 5: Push and Watch](#part-5-push-and-watch)
   - [Step 5.1: Commit and Push Changes](#step-51-commit-and-push-changes)
   - [Step 5.2: Add SonarQube Token to Jenkins and Run Build](#step-52-add-sonarqube-token-to-jenkins-and-run-build)
@@ -82,15 +82,23 @@ Bob run script inject_vulnerabilities.sh
 **What Bob does:**
 - Executes `labs/sre/lab3/inject_vulnerabilities.sh`
 - Modifies `order-service/src/main/java/com/example/orders/service/OrderService.java`
-- Injects vulnerable dependency into `order-service/pom.xml`
-- Injects 7 types of vulnerabilities:
+- Injects vulnerable dependencies into `order-service/pom.xml`
+- Injects 9 types of vulnerabilities:
+  
+  **Code Vulnerabilities (6):**
   1. Hardcoded credentials (BACKUP_DB_PASSWORD, LEGACY_API_KEY)
   2. Insecure logging (System.out.println)
   3. Weak cryptography (MD5)
   4. Stack trace exposure (printStackTrace)
   5. Weak random (java.util.Random)
   6. Information exposure (detailed error messages)
-  7. Vulnerable dependency (Log4j 2.14.1 - CVE-2021-44228)
+  
+  **Dependency Vulnerabilities (3):**
+  7. Log4j 2.14.1 - CVE-2021-44228 (Log4Shell - Critical)
+  8. Jackson Databind 2.12.3 - CVE-2020-36518 (High severity)
+  9. SnakeYAML 1.30 - CVE-2022-1471 (Critical severity)
+
+> **📊 CVE Impact:** The three vulnerable dependencies introduce **multiple high and critical severity CVEs** that will be detected by Grype during the security scan. This demonstrates how dependency vulnerabilities are identified, assessed, and prioritized in the pipeline.
 
 **Expected Output:**
 ```
@@ -117,6 +125,8 @@ Bob run script inject_vulnerabilities.sh
    5. Weak random (java.util.Random in generateTrackingNumber)
    6. Information exposure (detailed error messages)
    7. Vulnerable dependency (Log4j 2.14.1 - CVE-2021-44228)
+   8. Vulnerable dependency (Jackson Databind 2.12.3 - CVE-2020-36518)
+   9. Vulnerable dependency (SnakeYAML 1.30 - CVE-2022-1471)
 ```
 
 
@@ -143,9 +153,9 @@ Now that vulnerabilities have been injected, let's see what Bob detects in real-
    - 🔴 **Scan (Vulnerabilities): Integer.toHexString...** - Weak cryptography implementation
    - 🔴 **Scan (Vulnerabilities): Detected MD5 hash...** - Insecure hash algorithm usage
 
-**Why 4 findings instead of 7?**
+**Why 4 findings instead of 9?**
 
-While the script injected 7 types of vulnerabilities, Bob Findings focuses on **critical security issues** that pose the highest risk:
+While the script injected 9 types of vulnerabilities, Bob Findings focuses on **critical security issues** that pose the highest risk:
 
 | Vulnerability Type | Detected by Bob Findings? | Reason |
 |-------------------|---------------------------|---------|
@@ -155,7 +165,7 @@ While the script injected 7 types of vulnerabilities, Bob Findings focuses on **
 | Stack trace exposure | ⚠️ Lower priority | Context-dependent risk |
 | Weak random (java.util.Random) | ⚠️ Lower priority | May be flagged differently |
 | Information disclosure | ⚠️ Lower priority | Context-dependent risk |
-| Vulnerable dependency (Log4j) | ⚠️ Not in code scan | Detected by dependency scanners (SonarQube/Trivy) |
+| Vulnerable dependencies (3) | ⚠️ Not in code scan | Detected by dependency scanners (SonarQube/Grype) |
 
 **This is expected behavior!** Bob Findings prioritizes critical security issues (secrets and cryptographic vulnerabilities) over code quality issues. The comprehensive Security Analysis Report in Part 2 will capture all issues, while Bob Findings focuses on what developers need to fix immediately.
 
@@ -261,6 +271,8 @@ Bob will generate a comprehensive security analysis report: `SECURITY_ANALYSIS_R
 
 **Executive Summary:**
 
+> **Note:** The exact counts may vary based on Bob's analysis and the lab environment. The numbers below are representative examples.
+
 | Severity | Count |
 |----------|-------|
 | 🔴 CRITICAL | 3 |
@@ -268,7 +280,7 @@ Bob will generate a comprehensive security analysis report: `SECURITY_ANALYSIS_R
 | 🟡 MEDIUM | 5 |
 | 🔵 LOW | 3 |
 | ⚪ INFO | 2 |
-| **TOTAL** | **17** |
+| **TOTAL** | **~17** |
 
 **Risk Rating:** 🔴 **CRITICAL** - Application must not be deployed
 
@@ -509,11 +521,11 @@ Open and review the generated `SONARQUBE_ANALYSIS_REPORT.md` to see:
 
 ---
 
-## Part 4: Add SonarQube Security Analysis Stage
+## Part 4: Add SonarQube & Grype Security Analysis Stage
 
 > **Note:** Switch to **Jenkins Pipeline Integration** mode before proceeding with this step.
 
-### Step 4.1: Add SonarQube Security Analysis Stage
+### Step 4.1: Add SonarQube & Grype Security Analysis Stage
 
 **Prerequisites:**
 Before adding the security stage, ensure you have:
@@ -522,52 +534,87 @@ Before adding the security stage, ensure you have:
 
 > **Important:** You will add the SonarQube token to Jenkins credentials in Step 5.2. The Jenkinsfile you create in this step will reference the credential ID `sonarqube-token`, which you'll configure before running the build.
 
-#### Initial Prompt to Bob:
+#### 🎯 How Experienced Developers Use Bob for Complex Pipeline Stages
+
+As an experienced developer, you can leverage Bob's capabilities by crafting **comprehensive, specification-style prompts** that describe exactly what you need. This transforms Bob from a simple assistant into a powerful code generation tool.
+
+**The Power of Detailed Prompts:**
+Instead of asking "Add security scanning," provide a complete technical specification with:
+- ✅ Exact commands and tool versions
+- ✅ Container contexts and file paths
+- ✅ Data structure requirements (serializable types only)
+- ✅ Error handling and retry logic
+- ✅ Environment constraints (no external dependencies, rate limits)
+- ✅ Success criteria and logging requirements
+
+**Result:** Production-ready code in minutes, not hours of manual coding and testing.
+
+#### Prompt to Bob:
 
 **Prompt to Bob:**
 ```
-Add a security analysis stage to the Jenkinsfile that:
-1. Runs mandatory SonarQube security scanning using credentials('sonarqube-token')
-2. Optionally integrates dependency scanning with Trivy
-3. Performs CVE analysis if vulnerabilities are found
-4. Calculates overall risk level and makes deployment decision
-5. Generates consolidated security reports
+Add a comprehensive Security Analysis stage to the Jenkinsfile that performs multi-layered security scanning. The stage should be placed after the existing stages and include:
 
-The stage should include an environment section that loads the SonarQube token:
-environment {
-    SONAR_TOKEN = credentials('sonarqube-token')
-    SONAR_HOST_URL = 'https://sonarqube-sonarqube.apps.itz-8ggai0.infra01-lb.wdc04.techzone.ibm.com'
-}
+REQUIREMENTS:
+
+1. Environment Configuration:
+   - Load SonarQube token from Jenkins credentials: credentials('sonarqube-token')
+   - Set SONAR_HOST_URL to: https://sonarqube-sonarqube.apps.itz-8ggai0.infra01-lb.wdc04.techzone.ibm.com
+   - Set PROJECT_KEY dynamically using: "order-service-${env.USER}-${env.BUILD_NUMBER}"
+
+2. Phase 1 - SonarQube Security Scanning (MANDATORY):
+   - Run Maven SonarQube scan from order-service directory
+   - Use test-compile goal before sonar:sonar
+   - Wait for analysis completion with retry logic (max 12 retries, 10 seconds between)
+   - Fetch metrics: bugs, vulnerabilities, code_smells, security_hotspots, security_rating, reliability_rating, security_review_rating
+   - Parse JSON response using Groovy JsonSlurper (no jq dependency)
+   - Store results in serializable Map structure
+
+3. Phase 2 - Grype Vulnerability Scanning:
+   - Install Grype on-demand in the build-tools container using: curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+   - Run scan from order-service directory: grype dir:. --scope all-layers -o json > grype-report.json
+   - Parse JSON to count Critical, High, and Medium severity vulnerabilities
+   - Use grep and wc -l for counting (no jq dependency)
+   - Wrap in catchError to prevent pipeline failure
+
+4. Phase 3 - CVE Analysis with Bob (conditional):
+   - Only run if total vulnerabilities > 0
+   - Use Bob in 'code' mode (not custom mode)
+   - Provide detailed prompt including SonarQube and Grype results
+   - Request: risk assessment, top 3 vulnerabilities, remediation steps, deployment recommendation
+   - Save analysis to bob-cve-analysis.txt
+   - Extract deployment recommendation (BLOCK/WARN/PROCEED)
+
+5. Phase 4 - Risk Level Calculation:
+   - Calculate risk score: vulnerabilities*10 + hotspots*5 + bugs*2 + critical_cves*20 + high_cves*10
+   - Determine risk level: CRITICAL (≥50), HIGH (≥30), MEDIUM (≥10), LOW (<10)
+   - Store as serializable primitives (String/Integer only)
+
+6. Phase 5 - Deployment Decision:
+   - CRITICAL → BLOCK deployment, set currentBuild.result = 'UNSTABLE'
+   - HIGH → WARN with manual review recommendation
+   - MEDIUM/LOW → PROCEED with approval
+
+7. Phase 6 - Consolidated Report Generation:
+   - Create markdown report: security-analysis-report.md
+   - Include: executive summary, SonarQube results table, Grype results, CVE analysis, deployment recommendation
+   - Archive artifacts: security-analysis-report.md, bob-cve-analysis.txt, order-service/grype-report.json
+
+IMPORTANT CONSTRAINTS:
+- Use only serializable data types (String, Integer, Boolean) in securityResults Map
+- No jq or external JSON parsers - use Groovy JsonSlurper for SonarQube, grep/wc for Grype
+- Install Grype in build-tools container (no separate security-tools container due to Docker Hub rate limits)
+- Use 15-minute timeout for the entire stage
+- Wrap all phases in catchError blocks to ensure pipeline completion
+- Use container('build-tools') for Grype installation and scanning
+- Use container('bob') for CVE analysis
+
+The stage should provide clear console output with emoji indicators and progress messages for each phase.
 ```
 
 **What Bob does:**
 
-Bob will create an initial `Security Analysis` stage with the basic structure. However, this initial implementation may encounter **Groovy CPS serialization issues** when the pipeline runs, which is a common challenge in Jenkins pipeline development.
-
-> **📘 Understanding Jenkins CPS Serialization:**
->
-> Jenkins pipelines use Continuation Passing Style (CPS) transformation, which requires all variables to be serializable. When parsing JSON responses from APIs (like SonarQube), the JsonSlurper creates non-serializable objects that can cause `NotSerializableException` errors during pipeline execution.
->
-> This is a **standard Jenkins pipeline development pattern** - initial implementations often need refinement to handle serialization correctly. This is not a limitation of Bob, but rather a characteristic of Jenkins pipeline development that requires iterative refinement.
-
-#### Follow-up Prompt for Production-Ready Implementation:
-
-After the initial stage is created, you'll need to refine it for production use with proper serialization handling.
-
-**Follow-up Prompt to Bob:**
-```
-Fix the Security Analysis stage to ensure proper Groovy serialization and error handling:
-1. Parse all JSON responses immediately and extract only primitive values (String, Integer, Boolean)
-2. Set all JsonSlurper parsed objects to null after extracting values
-3. Add proper error handling with catchError blocks
-4. Ensure Trivy scan handles missing binary gracefully
-5. Make sure all variables stored in securityResults map contain only serializable primitives
-6. Verify the consolidated report builds correctly without serialization errors
-```
-
-**What Bob does in the refinement:**
-
-Creates a production-ready `Security Analysis` stage with the following structure:
+Bob generates a production-ready `Security Analysis` stage with the following structure:
 
 **Environment Configuration:**
 ```groovy
@@ -621,9 +668,11 @@ Uses the same SonarQube setup from Part 3 (Step 3.1 and 3.2):
 
 - Pipeline fails if SonarQube is not configured
 
-**Phase 2: Optional Dependency Scanning**
-- **Dependency scan** with Trivy (if available)
-- Gracefully skips if Trivy is not installed
+**Phase 2: Grype Vulnerability Scanning**
+- **Installs Grype on-demand** in build-tools container
+- Scans for vulnerabilities in dependencies and application code
+- Counts Critical, High, and Medium severity CVEs
+- Gracefully handles errors to prevent pipeline failure
 
 **Phase 3: Intelligent CVE Analysis**
 - Checks if any vulnerabilities were found in reports
@@ -647,17 +696,17 @@ Uses the same SonarQube setup from Part 3 (Step 3.1 and 3.2):
 **Key Benefits:**
 
 ✅ **Mandatory SonarQube Integration** - Ensures consistent security scanning across all builds
-✅ **Generic & Intelligent** - Uses Bob's AI for CVE assessment
-✅ **Conditional Analysis** - Only runs detailed CVE analysis when needed
+✅ **On-Demand Tool Installation** - Installs Grype dynamically to avoid Docker Hub rate limits
+✅ **Intelligent CVE Analysis** - Uses Bob's AI for risk assessment and remediation guidance
+✅ **Conditional Analysis** - Only runs detailed CVE analysis when vulnerabilities detected
 ✅ **Comprehensive Risk Assessment** - Considers ALL security reports together
-✅ **Flexible Tool Integration** - Optional Trivy support for dependency scanning
-✅ **Clear Deployment Decisions** - Automated risk-based gates
+✅ **No External Dependencies** - Uses Groovy JsonSlurper and grep/wc (no jq required)
+✅ **Clear Deployment Decisions** - Automated risk-based gates with BLOCK/WARN/PROCEED logic
 
 **Generated Reports:**
-- `SONARQUBE_ANALYSIS_REPORT.md` - Code quality and security (mandatory)
-- `CVE_ANALYSIS_REPORT.md` - CVE-specific analysis (if vulnerabilities found)
-- `SECURITY_SUMMARY.md` - Executive summary with deployment decision
-- `dependency-scan.txt` - Dependency vulnerabilities (if Trivy available)
+- `security-analysis-report.md` - Consolidated security report with executive summary
+- `bob-cve-analysis.txt` - Bob's CVE analysis with remediation steps
+- `order-service/grype-report.json` - Grype vulnerability scan results
 
 **Security Risk Levels:**
 - **🔴 CRITICAL:** Blocks deployment (pipeline fails)
@@ -683,10 +732,21 @@ If you wish to integrate the Software Security Reviewer mode into your pipeline,
 
 **Prompt to Bob:**
 ```
-git add Jenkinsfile .bob/ labs/sre/lab3/
-git commit -m "Lab 3 — Security Analysis stage with vulnerability scanning and CVE analysis"
+git add Jenkinsfile .bob/ labs/sre/lab3/ order-service/src/main/java/com/example/orders/service/OrderService.java order-service/pom.xml
+git commit -m "Lab 3 — Security Analysis stage with vulnerability scanning and injected vulnerabilities for testing"
 git push
 ```
+
+**What this does:**
+- Adds the updated Jenkinsfile with the Security Analysis stage
+- Adds any custom Bob modes from .bob/ directory
+- Adds lab3 files (scripts, documentation)
+- **Adds OrderService.java with injected vulnerabilities** for security testing
+- **Adds pom.xml with vulnerable Log4j dependency** for dependency scanning
+- Commits all changes with descriptive message
+- Pushes to trigger Jenkins build with vulnerabilities present
+
+> **Note:** We're intentionally committing the files with vulnerabilities so the Jenkins pipeline can detect them during the security scan. In Step 5.3, we'll remove these vulnerabilities and push clean code.
 
 ### Step 5.2: Add SonarQube Token to Jenkins and Run Build
 
