@@ -6,9 +6,11 @@ Comprehensive workshop collection demonstrating how to integrate [IBM Bob](https
 
 **All participants must complete setup first:**
 
-1. **📋 [Prerequisites & Setup](PREREQUISITES.md)** — System requirements and initial configuration
-2. **🎓 [Intro Labs](labs/intro-labs/)** — Complete these first to learn Bob fundamentals (1-2 hours)
-3. **Choose your track** — SRE or App Development based on your role
+1. **📋 [Prerequisites](PREREQUISITES.md)** — Ensure you have the requirements and initial configuration for the labs.
+2. **🎓 [Intro Labs](labs/intro-labs/bob-lab-1-fundamentals.md)** — Complete these first to learn Bob fundamentals (1-2 hours)
+3. **Choose your track** based on your role
+    - [SRE](labs/sre/) - Series of labs around Bob for the SRE and CI Pipeline.
+    - [Applciation Team](labs/app/) - Series of labs around Bob for app teams and development processes.
 4. **Optional:** Explore [Handoff Labs](labs/handoff-labs/) for advanced scenarios after completing your track
 
 ---
@@ -16,9 +18,11 @@ Comprehensive workshop collection demonstrating how to integrate [IBM Bob](https
 ## Workshop Structure
 
 ### 🎓 [Intro Labs](labs/intro-labs/) — Bob Fundamentals
+
 **Duration:** 1-2 hours | **Level:** Beginner | **Required for all participants**
 
 Learn Bob's core capabilities through hands-on exercises:
+
 - **Lab 1: Fundamentals** — Master Bob's interface, modes, and approval workflows
 - **Lab 2: Advanced Features** — Explore custom modes, MCP servers, and advanced workflows
 
@@ -27,6 +31,7 @@ Learn Bob's core capabilities through hands-on exercises:
 ---
 
 ### 🏗️ [SRE Labs](labs/sre/) — Jenkins Pipeline Integration
+
 **Duration:** 3-5 hours | **Level:** Intermediate to Advanced | **For SRE teams**
 
 Build a complete Jenkins CI/CD pipeline with Bob integration across 5 progressive labs:
@@ -48,29 +53,30 @@ The SRE labs use a progressive Jenkinsfile approach where you build up the pipel
 - **`Jenkinsfile.lab<N>solution`** — Reference state after Lab N. Use these to catch up if you fall behind.
 - **`Jenkinsfile.finalsolution`** — Complete end-state with all 5 labs integrated.
 
-**How it works:** Each pipeline build spins up a Kubernetes pod with two containers:
+**How it works:** Each pipeline build spins up a Kubernetes pod with multiple side car containers:
+
 - **`jenkins-agent`** — Runs pipeline shell steps (builds, tests, scans, lints)
 - **`bob-cli`** — Runs Bob CLI when invoked via `container('bob-cli') { ... }`
 
-Both containers share an `emptyDir` workspace volume at `/workspace`. When the pipeline does `checkout scm`, the repo lands there, and Bob reads `.bob/custom_modes.yaml` directly from it — so any mode on your branch is available at pipeline runtime without rebuilding images.
+The containers share an `emptyDir` workspace volume at `/workspace`. When the pipeline does `checkout scm`, the repo lands there, and Bob reads `.bob/custom_modes.yaml` directly from it — so any mode on your branch is available at pipeline runtime without rebuilding images.
 
 ---
 
 ### 💻 [App Labs](labs/app_labs/) — Application Development
-**Duration:** 2-4 hours | **Level:** Intermediate | **For application development teams**
 
-Experience Bob as an always-on copilot for application development in regulated environments:
+**Duration:** 1 hour | **Level:** Intermediate | **For application development teams**
+
+Experience Bob as an always-on partner for application development in regulated environments:
 
 1. **Lab 1: Code Review** — PCI compliance analysis, automated reports, remediation guidance
 2. **Lab 2: Semantic Versioning** — Breaking change detection, version recommendations, release notes
 
 **Tech Stack:** Spring Boot 3.2, Java 17, PostgreSQL, Maven
 
-**For:** Teams that maintain backend services, work in regulated environments, or need help with code quality and versioning decisions.
-
 ---
 
-### 🚀 [Handoff Labs](labs/handoff-labs/) — Advanced Scenarios
+### 🚀 [Handoff Labs](labs/handoff-labs/) — Additional Scenarios
+
 **Duration:** 30 min - 3+ hours | **Level:** Intermediate to Advanced | **Optional / After completing your track**
 
 Advanced labs for specialized use cases and extending Bob's capabilities:
@@ -86,24 +92,18 @@ Advanced labs for specialized use cases and extending Bob's capabilities:
 
 ## Repository Layout
 
-```
+```text
 ├── labs/
 │   ├── intro-labs/          Bob fundamentals (START HERE)
 │   ├── sre/                 Jenkins pipeline integration (5 labs)
-│   ├── app_labs/            Application development workflows
+│   ├── app/                 Application development workflows
 │   └── handoff-labs/        Advanced scenarios and custom modes
 │
 ├── order-service/           Spring Boot demo app (used in SRE & App labs)
 │
 ├── setup/                   Instructor setup guides and scripts
-│   ├── INSTRUCTOR_SETUP_*.md
-│   ├── JIRA_*.md
-│   ├── bob-cli/            Bob CLI container image
-│   ├── lint-tools/         Linting tools container image
-│   └── scripts/            Provisioning automation
 │
 ├── Jenkinsfile              Base pipeline (SRE labs starting point)
-├── Jenkinsfile.lab*solution Progressive solution Jenkinsfiles
 ├── .bob/                    Bob configuration (modes, MCP servers)
 └── PREREQUISITES.md         System requirements and dependencies
 ```
@@ -115,4 +115,3 @@ Advanced labs for specialized use cases and extending Bob's capabilities:
 - **Lab-specific questions:** Check the troubleshooting section in each lab
 - **Bob documentation:** https://bob.ibm.com/docs
 - **Quick references:** Most labs include Quick Start guides for common prompts
-
