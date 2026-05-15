@@ -100,7 +100,13 @@ Usage: bob [options] [command]
 
 ### Interactive Mode
 
-Launch Bob in interactive mode for terminal-based conversations:
+First, navigate to the sandbox directory you created in Intro Lab 1 — Bob's working directory is wherever you launch it from, and you want this session scoped to your sandbox:
+
+```bash
+cd labs/intro-labs/sandbox
+```
+
+Then launch Bob in interactive mode for terminal-based conversations:
 
 ```bash
 # Start interactive session
@@ -137,9 +143,8 @@ Execute single commands for automation and scripting:
 **Create a test file first:**
 
 ```bash
-# Create the sandbox dir (if Lab 1 didn't already) and a simple Python file inside it
-mkdir -p labs/intro-labs/sandbox
-cat > labs/intro-labs/sandbox/calculator.py << 'EOF'
+# You should already be in the sandbox directory
+cat > calculator.py << 'EOF'
 def add(a, b):
     return a + b
 
@@ -152,13 +157,13 @@ EOF
 
 ```bash
 # Explain code in a file
-bob "Explain what labs/intro-labs/sandbox/calculator.py does"
+bob "Explain what calculator.py does"
 
 # Review code
-bob "Review labs/intro-labs/sandbox/calculator.py and suggest improvements"
+bob "Review calculator.py and suggest improvements"
 
-# Generate new code (with auto-approval)
-bob "Create a Python function that calculates factorial" --yolo --hide-intermediary-output > labs/intro-labs/sandbox/factorial.py
+# Generate new code with YOLO mode.
+bob "Create a Python function that calculates factorial" --yolo --hide-intermediary-output > factorial.py
 
 # Quick questions
 bob "What is the difference between a list and a tuple in Python?"
