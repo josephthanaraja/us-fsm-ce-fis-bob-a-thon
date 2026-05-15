@@ -9,7 +9,7 @@ controller:
       cpu: 750m
       memory: 2560Mi
     limits:
-      cpu: "2"
+      cpu: "3"
       memory: 6Gi
   admin:
     username: admin
