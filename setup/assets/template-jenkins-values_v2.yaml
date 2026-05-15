@@ -33,6 +33,59 @@ controller:
     overwriteConfiguration: true
     defaultConfig: false
     configScripts: {}
+  # Auto-recovery init scripts. Rendered into a ConfigMap by the chart and
+  # mounted at /var/jenkins_home/init.groovy.d/. Run on every Jenkins startup,
+  # BEFORE users can log in. Survives PVC wipes (ConfigMap is independent of
+  # the PVC), so a fresh PVC reboot self-heals these three pieces of config.
+  #
+  # Scripts are run alphabetically. The 90- prefix puts them after any chart
+  # defaults. All three are idempotent — safe to run on every boot.
+  #
+  # NOT covered here: user accounts and per-folder authorization. Those live
+  # on the PVC and would be lost on a full wipe. If full unattended recovery
+  # is needed, add a 4th script that sources passwords from a Secret.
+  initScripts:
+    90-cloud.groovy: |
+      import jenkins.model.*
+      import org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud
+
+      def jenkins = Jenkins.getInstance()
+      jenkins.clouds.removeAll { it instanceof KubernetesCloud }
+
+      def cloud = new KubernetesCloud("kubernetes")
+      cloud.setNamespace("jenkins")
+      cloud.setJenkinsUrl("http://jenkins.jenkins.svc.cluster.local:8080")
+      cloud.setJenkinsTunnel("jenkins-agent.jenkins.svc.cluster.local:50000")
+      cloud.setContainerCapStr("10")
+
+      jenkins.clouds.add(cloud)
+      jenkins.save()
+      println "[init] Kubernetes cloud configured: ${cloud.name} in ${cloud.namespace}"
+
+    91-authorization.groovy: |
+      import jenkins.model.*
+      import hudson.security.*
+
+      def instance = Jenkins.getInstance()
+      def strategy = new ProjectMatrixAuthorizationStrategy()
+      strategy.add(Jenkins.ADMINISTER, "admin")
+      strategy.add(Jenkins.READ,       "authenticated")
+      instance.setAuthorizationStrategy(strategy)
+      instance.save()
+      println "[init] Authorization strategy set: ProjectMatrix (admin=Administer, authenticated=Read)"
+
+    92-realm.groovy: |
+      import jenkins.model.*
+      import hudson.security.*
+
+      def instance = Jenkins.getInstance()
+      if (!(instance.getSecurityRealm() instanceof HudsonPrivateSecurityRealm)) {
+          instance.setSecurityRealm(new HudsonPrivateSecurityRealm(false))
+          instance.save()
+          println "[init] Security realm restored to HudsonPrivate"
+      } else {
+          println "[init] Security realm already HudsonPrivate — no change"
+      }
 persistence:
   enabled: true
   size: 20Gi
