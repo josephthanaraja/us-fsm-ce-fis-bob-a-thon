@@ -25,7 +25,7 @@ Bob modes are **customizable behavior profiles** that tailor Bob's instructions,
 
 ### Why Modes Matter: A Key Differentiator
 
-According to the [Bob Differentiators](resources/bob-differentiators.md), **customizable modes** are one of Bob's four key differentiators that set it apart from other AI coding assistants:
+According to the [Bob Differentiators](../../../resources/bob-differentiators.md), **customizable modes** are one of Bob's four key differentiators that set it apart from other AI coding assistants:
 
 > **Customizable Modes** let you tailor the AI's behavior for specific workflows:
 > - **Code Mode** - For implementation, refactoring, and file operations

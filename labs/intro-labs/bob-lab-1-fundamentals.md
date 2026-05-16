@@ -394,7 +394,7 @@ Include a comment explaining why error handling is important here.
 - **Plan Mode**: Design and strategize before coding
 - **Code Mode**: Implement features and make changes
 - **Ask Mode**: Learn and understand concepts
-- **Custom Modes**: Create specialized modes for your workflows ([Learn more](../bob-differentiators.md#customizable-modes))
+- **Custom Modes**: Create specialized modes for your workflows ([Learn more](../../resources/bob-differentiators.md#customizable-modes))
 
 ### Working with Bob
 - Bob shows what it will do before taking action

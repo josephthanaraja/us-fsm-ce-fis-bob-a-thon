@@ -395,7 +395,7 @@ After completing the workshop labs, you'll know how to:
 ## 📚 Additional Resources
 
 - **Bob Documentation**: [https://bob.ibm.com/docs](https://bob.ibm.com/docs)
-- **Bob Differentiators**: [intro-labs/bob-differentiators.md](intro-labs/bob-differentiators.md)
+- **Bob Differentiators**: [resources/bob-differentiators.md](../resources/bob-differentiators.md)
 - **Custom Modes Guide**: [https://bob.ibm.com/docs/ide/configuration/custom-modes](https://bob.ibm.com/docs/ide/configuration/custom-modes)
 - **MCP Protocol**: [https://modelcontextprotocol.io](https://modelcontextprotocol.io)
 
