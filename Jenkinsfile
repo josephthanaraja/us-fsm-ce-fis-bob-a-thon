@@ -461,30 +461,25 @@ Generate a comprehensive DCR document suitable for filing as a Jira ticket.
                                 grype dir:. --scope all-layers -o json > grype-report.json || true
                             '''
 
-                            // Parse results using grep and wc (no jq dependency)
-                            def criticalCount = sh(
-                                script: '''
-                                    cd order-service
-                                    grep -o '"severity":"Critical"' grype-report.json | wc -l || echo "0"
-                                ''',
-                                returnStdout: true
-                            ).trim().toInteger()
-
-                            def highCount = sh(
-                                script: '''
-                                    cd order-service
-                                    grep -o '"severity":"High"' grype-report.json | wc -l || echo "0"
-                                ''',
-                                returnStdout: true
-                            ).trim().toInteger()
-
-                            def mediumCount = sh(
-                                script: '''
-                                    cd order-service
-                                    grep -o '"severity":"Medium"' grype-report.json | wc -l || echo "0"
-                                ''',
-                                returnStdout: true
-                            ).trim().toInteger()
+                            // Parse the report once via readJSON. Counting by
+                            // grep'ing "severity" out of the raw JSON would
+                            // over-count, because each match has a severity on
+                            // vulnerability AND on every relatedVulnerabilities
+                            // entry.
+                            def report = readJSON file: 'order-service/grype-report.json'
+                            def criticalCount = 0
+                            def highCount = 0
+                            def mediumCount = 0
+                            report.matches.each { m ->
+                                switch (m.vulnerability?.severity) {
+                                    case 'Critical': criticalCount++; break
+                                    case 'High':     highCount++;     break
+                                    case 'Medium':   mediumCount++;   break
+                                }
+                            }
+                            // Drop the parsed object so CPS doesn't try to
+                            // serialize it across steps (same pattern as Phase 1).
+                            report = null
 
                             // Store as Integer primitives
                             securityResults.grype.critical = criticalCount
