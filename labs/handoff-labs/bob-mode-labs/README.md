@@ -86,17 +86,12 @@ bob-mode-lab/
 │   └── workflow-mode-template.md      # Workflow mode template
 │
 ├── examples/                           # 5 complete example modes
-│   ├── code-reviewer-mode.md          # Simple mode example
-│   ├── api-doc-writer-mode.md         # Simple mode example
-│   ├── security-auditor-mode.md       # Simple mode example
-│   ├── feature-dev-workflow-mode.md   # Workflow mode example
-│   └── bug-fix-workflow-mode.md       # Workflow mode example
-│
-└── resources/                          # Background information
-    ├── modes-vs-skills.md             # Modes vs Skills guide
-    ├── bob-differentiators.md         # Why Bob modes matter
-    ├── bob-installation.md            # Installation guide
-    └── bob-productivity-gains-client-zero.md  # Real-world impact
+    ├── code-reviewer-mode.md          # Simple mode example
+    ├── api-doc-writer-mode.md         # Simple mode example
+    ├── security-auditor-mode.md       # Simple mode example
+    ├── feature-dev-workflow-mode.md   # Workflow mode example
+    └── bug-fix-workflow-mode.md       # Workflow mode example
+
 ```
 
 ---
@@ -127,7 +122,7 @@ bob-mode-lab/
 
 ## 💡 Why Bob Modes Matter
 
-From [Bob Differentiators](resources/bob-differentiators.md):
+From [Bob Differentiators](../../../resources/bob-differentiators.md):
 
 > **Customizable Modes** are one of Bob's four key differentiators that set it apart from other AI coding assistants. They let you:
 > - ✅ Tailor AI behavior to specific tasks
@@ -188,9 +183,8 @@ Have a great mode to share? We'd love to see it!
 
 ## 📖 Additional Resources
 
-- **[Modes vs Skills](resources/modes-vs-skills.md)** - Understanding the difference between modes and skills
-- **[Bob Differentiators](resources/bob-differentiators.md)** - What makes Bob unique
-- **[Bob Installation](resources/bob-installation.md)** - Getting started with Bob
+- **[Modes vs Skills](../../../resources/modes-vs-skills.md)** - Understanding the difference between modes and skills
+- **[Bob Differentiators](../../../resources/bob-differentiators.md)** - What makes Bob unique
 - **[Productivity Gains](resources/bob-productivity-gains-client-zero.md)** - Real-world impact data
 
 ---
