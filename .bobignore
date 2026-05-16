@@ -1,4 +1,8 @@
-# Allow access to test resports
+# Allow Bob to descend into target/ for surefire reports, but keep
+# everything else in target/ (classes, jars, deps) hidden.
+!**/target/
+**/target/*
+!**/target/surefire-reports/
 !**/target/surefire-reports/**
 
 **/Jenkinsfile*solution
