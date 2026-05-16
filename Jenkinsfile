@@ -324,13 +324,17 @@ Generate a comprehensive DCR document suitable for filing as a Jira ticket.
                         echo '─────────────────────────────────────────────────────'
 
                         container('build-tools') {
-                            sh """
+                            // Single quotes so $SONAR_TOKEN is expanded by the
+                            // shell at runtime, not interpolated by Groovy into
+                            // the rendered command (which Jenkins warns about
+                            // as insecure secret handling).
+                            sh '''
                                 cd order-service
                                 mvn clean test-compile sonar:sonar \
-                                    -Dsonar.projectKey=${PROJECT_KEY} \
-                                    -Dsonar.host.url=${SONAR_HOST_URL} \
-                                    -Dsonar.token=${SONAR_TOKEN}
-                            """
+                                    -Dsonar.projectKey=$PROJECT_KEY \
+                                    -Dsonar.host.url=$SONAR_HOST_URL \
+                                    -Dsonar.token=$SONAR_TOKEN
+                            '''
                         }
 
                         echo '⏳ Waiting for SonarQube analysis to complete...'
@@ -346,11 +350,11 @@ Generate a comprehensive DCR document suitable for filing as a Jira ticket.
                                 
                                 container('build-tools') {
                                     taskStatus = sh(
-                                        script: """
-                                            curl -s -u ${SONAR_TOKEN}: \
-                                                "${SONAR_HOST_URL}/api/ce/component?component=${PROJECT_KEY}" \
+                                        script: '''
+                                            curl -s -u "$SONAR_TOKEN:" \
+                                                "$SONAR_HOST_URL/api/ce/component?component=$PROJECT_KEY" \
                                                 | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4
-                                        """,
+                                        ''',
                                         returnStdout: true
                                     ).trim()
                                 }
@@ -390,10 +394,10 @@ Generate a comprehensive DCR document suitable for filing as a Jira ticket.
                                 
                                 container('build-tools') {
                                     metricsJson = sh(
-                                        script: """
-                                            curl -s -u ${SONAR_TOKEN}: \
-                                                "${SONAR_HOST_URL}/api/measures/component?component=${PROJECT_KEY}&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,security_rating,reliability_rating,security_review_rating"
-                                        """,
+                                        script: '''
+                                            curl -s -u "$SONAR_TOKEN:" \
+                                                "$SONAR_HOST_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,security_rating,reliability_rating,security_review_rating"
+                                        ''',
                                         returnStdout: true
                                     ).trim()
                                 }
