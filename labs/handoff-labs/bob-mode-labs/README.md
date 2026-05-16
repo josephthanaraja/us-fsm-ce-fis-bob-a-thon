@@ -137,7 +137,7 @@ From [Bob Differentiators](../../../resources/bob-differentiators.md):
 - Faster onboarding for new developers
 - Reduced context switching
 
-See [productivity gains](resources/bob-productivity-gains-client-zero.md) for detailed metrics.
+See [productivity gains](../../../resources/bob-productivity-gains-client-zero.md) for detailed metrics.
 
 ---
 
@@ -185,7 +185,7 @@ Have a great mode to share? We'd love to see it!
 
 - **[Modes vs Skills](../../../resources/modes-vs-skills.md)** - Understanding the difference between modes and skills
 - **[Bob Differentiators](../../../resources/bob-differentiators.md)** - What makes Bob unique
-- **[Productivity Gains](resources/bob-productivity-gains-client-zero.md)** - Real-world impact data
+- **[Productivity Gains](../../../resources/bob-productivity-gains-client-zero.md)** - Real-world impact data
 
 ---
 
