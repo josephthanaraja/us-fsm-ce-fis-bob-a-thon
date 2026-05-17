@@ -67,7 +67,7 @@ Tool groups:
 
 Notice the prompt above tells the **Mode Writer** mode to write Markdown files instead of XML this time. Both are acceptable practice with Bob. 
 
-Feel free to explore the XML files and see what Bob decided to generate.
+Feel free to explore the Markdown files and see what Bob decided to generate.
 
 Once Bob finishes, **restart Bob IDE** so the new mode appears in your mode dropdown — IDE modes are loaded at IDE startup.
 
