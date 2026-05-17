@@ -307,4 +307,4 @@ You've successfully completed Lab 3! You've learned to:
 
 ---
 
-*Adapted from Client Engineering `bob-intro-labs`. Last Updated: December 2025*
+*Adapted from Client Engineering `bob-intro-labs`. Last Updated: May 2026*
