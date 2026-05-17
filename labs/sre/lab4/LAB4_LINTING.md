@@ -53,8 +53,10 @@ By the end of this lab, you will use Bob to not just interact with linters — b
 
 ### Before you start
 
-- [ ] You should have completed Lab 1 at a minimum (your Jenkinsfile already has [`askBob()`](labs/sre/lab1/Jenkinsfile.lab1solution:153))
+- [ ] You should have completed Lab 1 at a minimum (your Jenkinsfile already has the `askBob()` helper)
 - [ ] You're on your working branch (for example `user1-labs`)
+
+**Reset your Jenkinsfile first.** Remove any stages you added in previous labs, keeping only the `Checkout` stage and the `askBob` helper at the bottom. Stacking every lab's stages stretches a single build past 15 minutes — clearing them keeps iteration fast and the logs readable. Use [`solution/Jenkinsfile.start`](../../../solution/Jenkinsfile.start) as the reference shape.
 
 ---
 

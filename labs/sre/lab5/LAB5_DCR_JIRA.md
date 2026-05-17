@@ -45,9 +45,11 @@ By the end, every push produces a structured DCR in Jenkins **and** a fresh Jira
 
 ## Before you start
 
-- [ ] Labs 1 and 2 complete (PR Review + Unit Tests stages already in your Jenkinsfile)
+- [ ] Lab 1 complete (askBob helper added to your Jenkinsfile)
 - [ ] You're on your working branch (e.g. `user1-labs`)
 - [ ] Your `.bob/mcp.json` still has the `atlassian` bash-launcher entry from the morning intro lab, and `.env` at the repo root with your Jira credentials. We'll dogfood the mode against your own Jira before swapping to the CI form.
+
+**Reset your Jenkinsfile first.** Remove any stages you added in previous labs, keeping only the `Checkout` stage and the `askBob` helper at the bottom. Stacking every lab's stages stretches a single build past 15 minutes — clearing them keeps iteration fast and the logs readable. Use [`solution/Jenkinsfile.start`](../../../solution/Jenkinsfile.start) as the reference shape.
 
 ---
 
