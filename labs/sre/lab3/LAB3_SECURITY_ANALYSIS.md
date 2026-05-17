@@ -60,8 +60,10 @@ By the end, every push triggers automated security scanning in your Jenkins pipe
 
 ## Before you start
 
-- [ ] Lab 2 complete (your Jenkinsfile already has a PR Review stage and the askBob helper)
+- [ ] Lab 1 complete (askBob helper added to your Jenkinsfile)
 - [ ] You're on your working branch (e.g. `user1-labs`)
+
+**Reset your Jenkinsfile first.** Remove any stages you added in previous labs, keeping only the `Checkout` stage and the `askBob` helper at the bottom. Stacking every lab's stages stretches a single build past 15 minutes — clearing them keeps iteration fast and the logs readable. Use [`solution/Jenkinsfile.start`](../../../solution/Jenkinsfile.start) as the reference shape.
 
 
 ## Part 1: Inject Security Vulnerabilities

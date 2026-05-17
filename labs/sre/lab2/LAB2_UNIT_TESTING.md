@@ -41,8 +41,10 @@ By the end, a failing test won't just turn the build yellow — Bob will explain
 
 ## Before you start
 
-- [ ] Lab 1 complete (your Jenkinsfile already has a PR Review stage and the askBob helper)
+- [ ] Lab 1 complete (askBob helper added to your Jenkinsfile)
 - [ ] You're on your working branch (e.g. `user1-labs`)
+
+**Reset your Jenkinsfile first.** Remove the stages you added in previous labs, keeping only the `Checkout` stage and the `askBob` helper at the bottom. Stacking every lab's stages stretches a single build past 15 minutes — clearing them keeps iteration fast and the logs readable. Use [`solution/Jenkinsfile.start`](../../../solution/Jenkinsfile.start) as the reference shape.
 
 ---
 
