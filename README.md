@@ -1,5 +1,7 @@
 # FIS Bob-a-thon Workshop
 
+![banner](resources/banner.png)
+
 Comprehensive workshop collection demonstrating how to integrate [IBM Bob](https://bob.ibm.com) into development workflows, CI/CD pipelines, and custom automation scenarios.
 
 ## Getting Started
@@ -34,7 +36,7 @@ Learn Bob's core capabilities through hands-on exercises:
 
 **Duration:** 3-5 hours | **Level:** Intermediate to Advanced | **For SRE teams**
 
-Build a complete Jenkins CI/CD pipeline with Bob integration across 5 progressive labs:
+Build a complete Jenkins CI/CD pipeline with Bob integration across 6 progressive labs:
 
 1. **PR / Git Diff Review** — Bob analyzes diffs, identifies risks, provides summaries
 2. **Unit Testing** — Generate tests, diagnose failures, add pipeline test stages
@@ -47,11 +49,7 @@ Build a complete Jenkins CI/CD pipeline with Bob integration across 5 progressiv
 
 #### Pipeline Scaffolding
 
-The SRE labs use a progressive Jenkinsfile approach where you build up the pipeline stage by stage:
-
-- **`Jenkinsfile`** — Base pipeline with pod spec + Checkout stage (no Bob calls yet). This is your starting point.
-- **`Jenkinsfile.lab<N>solution`** — Reference state after Lab N. Use these to catch up if you fall behind.
-- **`Jenkinsfile.finalsolution`** — Complete end-state with all 5 labs integrated.
+The SRE labs use a progressive Jenkinsfile approach where you build up the pipeline stage by stage.
 
 **How it works:** Each pipeline build spins up a Kubernetes pod with multiple side car containers:
 
@@ -62,9 +60,9 @@ The containers share an `emptyDir` workspace volume at `/workspace`. When the pi
 
 ---
 
-### 💻 [App Labs](labs/app_labs/) — Application Development
+### 💻 [App Labs](labs/app/) — Application Development
 
-**Duration:** 1 hour | **Level:** Intermediate | **For application development teams**
+**Duration:** 1-2 hours | **Level:** Intermediate | **For application development teams**
 
 Experience Bob as an always-on partner for application development in regulated environments:
 
@@ -81,10 +79,12 @@ Experience Bob as an always-on partner for application development in regulated 
 
 Advanced labs for specialized use cases and extending Bob's capabilities:
 
-- **Auto-Recovery & Self-Healing** — Automate error detection and recovery in pipelines
-- **OpenShift Deployment** — Automated deployment validation, orchestration, and rollback
 - **Bob Mode Builder** — Create custom Bob modes for your workflows (includes 5 examples + templates)
-- **Example MCP Servers** — 8 production-ready MCP server implementations
+- **Example MCP Servers** — 5 production-ready MCP server implementations using FastMCP
+- **OpenShift Operations** — Manage OpenShift clusters using Bob's AI-native approach
+- **Python to JavaScript Translation** — Translate code between programming languages
+- **Simple App Development** — Build a full-stack application from scratch with Bob
+- **Java Application Modernization** — Modernize legacy Java applications from Java 8 to Java 17/21
 
 **For:** Teams with specific integration requirements or those wanting to customize Bob for their workflows.
 
@@ -94,10 +94,10 @@ Advanced labs for specialized use cases and extending Bob's capabilities:
 
 ```text
 ├── labs/
-│   ├── intro-labs/          Bob fundamentals (START HERE)
-│   ├── sre/                 Jenkins pipeline integration (5 labs)
-│   ├── app/                 Application development workflows
-│   └── handoff-labs/        Advanced scenarios and custom modes
+│   ├── intro-labs/          Bob fundamentals (START HERE - 2 labs)
+│   ├── sre/                 Jenkins pipeline integration (6 labs)
+│   ├── app/                 Application development workflows (2 labs)
+│   └── handoff-labs/        Advanced scenarios and custom modes (6 labs)
 │
 ├── order-service/           Spring Boot demo app (used in SRE & App labs)
 │

@@ -33,8 +33,8 @@ This workshop offers multiple learning paths:
 
 1. **Intro Labs** (2 labs) - Start here if you're new to Bob
 2. **SRE Track** (6 labs) - CI/CD pipeline automation with Bob and Jenkins
-3. **App Track** (1 lab) - Application development with Bob
-4. **Handoff Labs** (4 labs) - Advanced topics and custom integrations
+3. **App Track** (2 labs) - Application development with Bob
+4. **Handoff Labs** (6 labs) - Advanced topics and custom integrations
 
 ---
 
@@ -274,31 +274,35 @@ These labs focus on using Bob for feature development, code review, and quality 
 
 ---
 
+### Lab 2: Semantic Versioning with Bob
+
+**Time**: 30 minutes | **File**: [app/lab2/LAB2_SEMANTIC_VERSIONING.md](app/lab2/LAB2_SEMANTIC_VERSIONING.md)
+
+**What You'll Do:**
+
+- Establish a baseline version for the order-service
+- Make a backward-compatible change and determine the correct version bump
+- Introduce an accidental breaking change and detect it with Bob
+- Analyze third-party dependency breaking changes
+- Generate release notes and migration guidance
+
+**📚 What You'll Learn:**
+
+- Detecting breaking changes that humans frequently miss
+- Analyzing third-party dependency impact automatically
+- Reasoning about changes from a downstream-consumer perspective
+- Recommending correct semantic version increments
+- Producing clear, concise release notes and migration guidance
+
+**Use Case**: Faster release decisions with fewer production surprises by automating semantic versioning analysis
+
+---
+
 ## 🎓 Handoff Labs: Advanced Topics
 
 These optional labs demonstrate advanced Bob capabilities and real-world integration patterns.
 
-### 1. Auto-Recovery and Self-Healing
-
-**Time**: 20 minutes | **File**: [handoff-labs/bob-auto-recovery-self-healing-lab.md](handoff-labs/bob-auto-recovery-self-healing-lab.md)
-
-Build self-healing CI/CD pipelines that automatically detect and recover from common failures.
-
-**Topics**: Build failure recovery, test auto-healing, dependency resolution, orchestration modes
-
----
-
-### 2. OpenShift Deployment Automation
-
-**Time**: 20 minutes | **File**: [handoff-labs/bob-openshift-deployment-lab.md](handoff-labs/bob-openshift-deployment-lab.md)
-
-Automate OpenShift deployments with pre-deployment validation, health checks, and intelligent rollback.
-
-**Topics**: Container builds, deployment orchestration, health verification, rollback automation
-
----
-
-### 3. Bob Mode Builder
+### 1. Bob Mode Builder
 
 **Time**: 30 min - 2+ hours | **File**: [handoff-labs/bob-mode-labs/README.md](handoff-labs/bob-mode-labs/README.md)
 
@@ -310,15 +314,63 @@ Create custom Bob modes for your specific workflows with templates and examples.
 
 ---
 
-### 4. Example MCP Servers
+### 2. Example MCP Servers
 
-**Time**: 30 min - 3+ hours | **File**: [handoff-labs/ibm-bob-example-mcp-servers-main/README.md](handoff-labs/ibm-bob-example-mcp-servers-main/README.md)
+**Time**: 30 min - 3+ hours | **File**: [handoff-labs/bob-mcp-labs/README.md](handoff-labs/bob-mcp-labs/README.md)
 
-Eight production-ready MCP server examples using FastMCP framework.
+Five production-ready MCP server examples using FastMCP framework.
 
-**Topics**: Calculator, file operations, web scraping, database operations, API integration, containerized execution
+**Topics**: Calculator, file operations, database operations, API integration
 
-**Prerequisites**: Python 3.8+, pip (Podman for Lab 07)
+**Prerequisites**: Python 3.8+, UV package manager
+
+---
+
+### 3. OpenShift Operations with Bob
+
+**Time**: 45-60 minutes | **File**: [handoff-labs/openshift-with-bob/README.md](handoff-labs/openshift-with-bob/README.md)
+
+Manage Red Hat OpenShift Container Platform using Bob's AI-native approach.
+
+**Topics**: MCP-based automation, custom mode workflows, deployment, monitoring, troubleshooting
+
+**Prerequisites**: OpenShift CLI (`oc`), access to OpenShift cluster, Python 3.8+, UV
+
+---
+
+### 4. Python to JavaScript Translation
+
+**Time**: 20 minutes | **File**: [handoff-labs/python-to-javascript/README.md](handoff-labs/python-to-javascript/README.md)
+
+Translate code from one programming language to another while maintaining functionality.
+
+**Topics**: Language analysis, translation planning, feature mapping, verification
+
+**Prerequisites**: Python 3.8+, Node.js 14+, UV package manager
+
+---
+
+### 5. Simple App Development
+
+**Time**: 30-45 minutes | **File**: [handoff-labs/simple-app-development/README.md](handoff-labs/simple-app-development/README.md)
+
+Build a complete full-stack application from scratch with Bob.
+
+**Topics**: Full-stack development, Flask REST API, SQLite, HTML/CSS/JavaScript, CRUD operations
+
+**Prerequisites**: Python 3.8+, Node.js 14+
+
+---
+
+### 6. Java Application Modernization
+
+**Time**: 45-60 minutes | **File**: [handoff-labs/simple-java-modernization/README.md](handoff-labs/simple-java-modernization/README.md)
+
+Modernize legacy Java applications from Java 8 to Java 17/21.
+
+**Topics**: Records, sealed classes, pattern matching, switch expressions, API updates, virtual threads
+
+**Prerequisites**: Java 17 or 21, Maven or Gradle
 
 ---
 
