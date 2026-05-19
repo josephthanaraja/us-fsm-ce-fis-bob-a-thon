@@ -140,8 +140,52 @@ spec:
         }
 
         // ── Lab 1: PR / Git Diff Review ──────────────────────────
-        //    Add a stage here that runs Bob in a "senior developer"
-        //    mode against the git diff. See labs/LAB1_PR_REVIEW.md.
+        stage('PR Review') {
+            options {
+                timeout(time: 5, unit: 'MINUTES')
+            }
+            steps {
+                script {
+                    echo '════════════════════════════════════════════════════════'
+                    echo '  🤖 Bob PR Review Analysis'
+                    echo "  Started: ${new Date()}"
+                    echo '════════════════════════════════════════════════════════'
+                    
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        // Configure git safe directory and compute diff
+                        sh '''
+                            git config --global --add safe.directory "$WORKSPACE"
+                            git diff origin/main...HEAD > git-diff.txt || : > git-diff.txt
+                        '''
+                        
+                        // Build prompt for Bob
+                        def prompt = "Read git-diff.txt and provide a quick risk-oriented overview of what changed in this PR."
+                        
+                        // Run Bob analysis
+                        def analysis = askBob(prompt, 'pipeline-git-diff-overview')
+                        
+                        // Display in console
+                        echo ''
+                        echo analysis
+                        
+                        // Save for archiving
+                        writeFile file: 'bob-pr-review.md', text: analysis
+                    }
+                    
+                    echo ''
+                    echo "  Completed: ${new Date()}"
+                    echo "  Full report: bob-pr-review.md (archived)"
+                    echo '════════════════════════════════════════════════════════'
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'bob-pr-review.md,git-diff.txt',
+                                   allowEmptyArchive: true,
+                                   fingerprint: true
+                }
+            }
+        }
 
         // ── Lab 2: Unit Testing ──────────────────────────────────
         //    Add a mvn test stage + Bob test-failure analysis.
@@ -190,4 +234,5 @@ def askBob(String prompt, String mode = null) {
         sh "rm -f ${promptFile}"
         return analysis
     }
+    
 }
