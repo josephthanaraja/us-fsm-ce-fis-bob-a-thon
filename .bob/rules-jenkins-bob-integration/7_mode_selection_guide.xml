@@ -15,17 +15,27 @@
     </description>
 
     <mode slug="pipeline-git-diff-overview">
-      <added_by>Lab 1 — participants build it themselves</added_by>
-      <purpose>Senior-developer-style overview of a PR's diff: short summary, risk
-      band (high/medium/low), and a "watch for" list. Plain text, no markdown
-      tables, suitable for a Jenkins console.</purpose>
-      <inputs>git-diff.txt (relative path) — the branch's diff against main</inputs>
-      <permissions>read</permissions>
+      <added_by>Created in custom_modes.yaml</added_by>
+      <purpose>Analyzes git diffs to provide concise, actionable summaries of code changes
+      in CI/CD pipelines. Categorizes changes by type (features, bug fixes, refactoring,
+      configuration, tests, documentation), identifies potential risks, and highlights
+      breaking changes. Output is formatted for Jenkins console logs - plain text, no
+      markdown tables.</purpose>
+      <inputs>Git diff content (as text or file path)</inputs>
+      <permissions>read, command, mcp</permissions>
       <example_call><![CDATA[
-def analysis = askBob(
-    "Read git-diff.txt and produce the senior-developer PR overview.",
-    'pipeline-git-diff-overview'
-)
+def diffContent = sh(script: 'git diff origin/main...HEAD', returnStdout: true).trim()
+def prompt = """
+Analyze the following git diff and provide:
+- Executive summary of changes
+- Risk assessment (high/medium/low)
+- Key areas requiring review
+- Breaking changes or API modifications
+
+Diff:
+${diffContent}
+"""
+def analysis = askBob(prompt, 'pipeline-git-diff-overview')
       ]]></example_call>
     </mode>
 
